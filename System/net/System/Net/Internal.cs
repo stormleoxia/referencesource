@@ -171,9 +171,11 @@ namespace System.Net {
         // Need a fast cached list of local addresses for internal use.
         private static volatile IPAddress[] _LocalAddresses;
         private static object _LocalAddressesLock;
-        private static volatile NetworkAddressChangePolled s_AddressChange;
 
 #if !FEATURE_PAL
+
+        private static volatile NetworkAddressChangePolled s_AddressChange;
+
         internal static IPAddress[] LocalAddresses
         {
             get
@@ -1001,8 +1003,6 @@ namespace System.Net {
         }
     }
 
-#if !FEATURE_PAL
-    
     internal enum WindowsInstallationType
     { 
         Unknown = 0,
@@ -1057,6 +1057,8 @@ namespace System.Net {
         UnsupportedPreauth          =   unchecked((int)0x80090343),
         BadBinding                  =   unchecked((int)0x80090346)
     }
+
+#if !FEATURE_PAL
 
     internal enum ContentTypeValues {
         ChangeCipherSpec    = 0x14,
