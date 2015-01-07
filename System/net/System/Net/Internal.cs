@@ -6,6 +6,7 @@
 
 namespace System.Net {
     using System.IO;
+	using System.Text;
     using System.Reflection;
     using System.Collections;
     using System.Collections.Specialized;
@@ -172,6 +173,7 @@ namespace System.Net {
         private static volatile IPAddress[] _LocalAddresses;
         private static object _LocalAddressesLock;
 
+#if MONO_NOT_IMPLEMENTED
 #if !FEATURE_PAL
 
         private static volatile NetworkAddressChangePolled s_AddressChange;
@@ -399,6 +401,7 @@ namespace System.Net {
             }
         }
 #endif // !FEATURE_PAL
+#endif
 
         private static object LocalAddressesLock
         {
@@ -947,7 +950,9 @@ namespace System.Net {
     internal static class ExceptionHelper
     {
         internal static readonly KeyContainerPermission KeyContainerPermissionOpen = new KeyContainerPermission(KeyContainerPermissionFlags.Open);
+#if MONO_FEATURE_WEB_STACK
         internal static readonly WebPermission WebPermissionUnrestricted = new WebPermission(NetworkAccess.Connect);
+#endif
         internal static readonly SecurityPermission UnmanagedPermission = new SecurityPermission(SecurityPermissionFlag.UnmanagedCode);
         internal static readonly SocketPermission UnrestrictedSocketPermission = new SocketPermission(PermissionState.Unrestricted);
         internal static readonly SecurityPermission InfrastructurePermission = new SecurityPermission(SecurityPermissionFlag.Infrastructure);
@@ -978,6 +983,7 @@ namespace System.Net {
             }
         }
 
+#if MONO_FEATURE_WEB_STACK
         internal static WebException IsolatedException {
             get {
                 return new WebException(NetRes.GetWebStatusString("net_requestaborted", WebExceptionStatus.KeepAliveFailure),WebExceptionStatus.KeepAliveFailure, WebExceptionInternalStatus.Isolated, null);
@@ -1001,6 +1007,7 @@ namespace System.Net {
                 return new WebException(NetRes.GetWebStatusString("net_requestaborted", WebExceptionStatus.RequestProhibitedByCachePolicy), WebExceptionStatus.RequestProhibitedByCachePolicy);
             }
         }
+#endif
     }
 
     internal enum WindowsInstallationType
@@ -1658,6 +1665,8 @@ typedef struct _SCHANNEL_CRED
     } // class PrefixListElement
 
 
+#if MONO_FEATURE_WEB_STACK
+
     //
     // HttpRequestCreator.
     //
@@ -1990,6 +1999,7 @@ typedef struct _SCHANNEL_CRED
             return D.ToUniversalTime().ToString("R", dateFormat);
         }
     }
+#endif
 
 #if !FEATURE_PAL
     // Proxy class for linking between ICertificatePolicy <--> ICertificateDecider

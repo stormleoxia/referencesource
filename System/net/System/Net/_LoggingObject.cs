@@ -215,7 +215,11 @@ namespace System.Net {
                     }
                 }
                 if (threadId == 0) {
+#if MONO
+					threadId = Thread.CurrentThread.ManagedThreadId;
+#else
                     threadId = UnsafeNclNativeMethods.GetCurrentThreadId();
+#endif
                     Thread.SetData(GlobalLog.s_ThreadIdSlot, threadId);
                 }
             }
@@ -978,7 +982,9 @@ namespace System.Net {
 #if DEBUG && !STRESS
                 Debug.Assert(false, message, detailMessage);
 #else
+#if MONO_NOT_IMPLEMENTED
                 UnsafeNclNativeMethods.DebugBreak();
+#endif
                 Debugger.Break();
 #endif
             }
@@ -1151,6 +1157,8 @@ namespace System.Net {
         }
 #endif
 
+#if MONO_FEATURE_WEB_STACK
+
         [System.Diagnostics.Conditional("DEBUG")]
         internal static void DebugAddRequest(HttpWebRequest request, Connection connection, int flags) {
 #if DEBUG
@@ -1213,5 +1221,6 @@ namespace System.Net {
             }
 #endif
         }
+#endif
     } // class GlobalLog
 } // namespace System.Net
