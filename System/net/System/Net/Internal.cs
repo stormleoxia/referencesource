@@ -1065,8 +1065,6 @@ namespace System.Net {
         BadBinding                  =   unchecked((int)0x80090346)
     }
 
-#if !FEATURE_PAL
-
     internal enum ContentTypeValues {
         ChangeCipherSpec    = 0x14,
         Alert               = 0x15,
@@ -1205,6 +1203,8 @@ namespace System.Net {
         MatchTypeAnd    = 0x00,
         MatchTypeOr     = 0x01,
     }
+
+#if !FEATURE_PAL
 
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct ChainPolicyParameter {
