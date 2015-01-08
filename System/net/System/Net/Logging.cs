@@ -634,10 +634,7 @@ namespace System.Net {
         {
             internal NclTraceSource(string name) : base(name) { }
 
-            #if !MONO_INSIDE_MONO_SECURITY
-            internal
-            #endif
-            protected override string[] GetSupportedAttributes()
+            protected internal override string[] GetSupportedAttributes()
             {
                 return Logging.SupportedAttributes;
             }
