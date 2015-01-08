@@ -82,7 +82,42 @@ namespace System.Net.Security {
 
         private bool                m_RefreshCredentialNeeded;
 
+#if MONO
+        private SSPIInterface       m_SecModule;
+#endif
 
+
+#if MONO
+        internal SecureChannel(string hostname, bool serverMode, SchProtocols protocolFlags, X509Certificate serverCertificate, X509CertificateCollection clientCertificates, bool remoteCertRequired, bool checkCertName,
+            bool checkCertRevocationStatus, EncryptionPolicy encryptionPolicy, LocalCertSelectionCallback certSelectionDelegate, RemoteCertValidationCallback remoteValidationCallback, SSPIConfiguration config)
+        {
+            GlobalLog.Enter("SecureChannel#" + ValidationHelper.HashString(this) + "::.ctor", "hostname:" + hostname + " #clientCertificates=" + ((clientCertificates == null) ? "0" : clientCertificates.Count.ToString(NumberFormatInfo.InvariantInfo)));
+            if (Logging.On) Logging.PrintInfo(Logging.Web, this, ".ctor", "hostname=" + hostname + ", #clientCertificates=" + ((clientCertificates == null) ? "0" : clientCertificates.Count.ToString(NumberFormatInfo.InvariantInfo)) + ", encryptionPolicy=" + encryptionPolicy);
+            m_SecModule = GlobalSSPI.Create(hostname, serverMode, protocolFlags, serverCertificate, clientCertificates, remoteCertRequired, checkCertName, checkCertRevocationStatus, encryptionPolicy, certSelectionDelegate, remoteValidationCallback, config);
+
+            m_Destination = hostname;
+
+            GlobalLog.Assert(hostname != null, "SecureChannel#{0}::.ctor()|hostname == null", ValidationHelper.HashString(this));
+            m_HostName = hostname;
+            m_ServerMode = serverMode;
+
+            if (serverMode)
+                m_ProtocolFlags = (protocolFlags & SchProtocols.ServerMask);
+            else
+                m_ProtocolFlags = (protocolFlags & SchProtocols.ClientMask);
+
+            m_ServerCertificate = serverCertificate;
+            m_ClientCertificates = clientCertificates;
+            m_RemoteCertRequired = remoteCertRequired;
+            m_SecurityContext = null;
+            m_CheckCertRevocation = checkCertRevocationStatus;
+            m_CheckCertName = checkCertName;
+            m_CertSelectionDelegate = certSelectionDelegate;
+            m_RefreshCredentialNeeded = true;
+            m_EncryptionPolicy = encryptionPolicy;
+            GlobalLog.Leave("SecureChannel#" + ValidationHelper.HashString(this) + "::.ctor");
+        }
+#else
         internal SecureChannel(string hostname, bool serverMode, SchProtocols protocolFlags, X509Certificate serverCertificate, X509CertificateCollection clientCertificates, bool remoteCertRequired, bool checkCertName, 
                                                   bool checkCertRevocationStatus, EncryptionPolicy encryptionPolicy, LocalCertSelectionCallback certSelectionDelegate)
         {
@@ -112,6 +147,7 @@ namespace System.Net.Security {
             m_EncryptionPolicy = encryptionPolicy;
             GlobalLog.Leave("SecureChannel#" + ValidationHelper.HashString(this) + "::.ctor");
         }
+#endif
 
         //
         // SecureChannel properties
@@ -140,7 +176,7 @@ namespace System.Net.Security {
             }
         }
 
-
+#if MONO_NOT_SUPPORTED
         unsafe static class UnmanagedCertificateContext
         {
 
@@ -177,12 +213,17 @@ namespace System.Net.Security {
                 return result;
             }
         }
+#endif
+
         //
         //This code extracts a remote certificate upon request.
         //SECURITY: The scenario is allowed in semitrust
         //
         internal X509Certificate2 GetRemoteCertificate(out X509Certificate2Collection remoteCertificateStore)
         {
+#if MONO
+            return SSPIWrapper.GetRemoteCertificate(m_SecurityContext, out remoteCertificateStore);
+#else
             remoteCertificateStore = null;
 
             if (m_SecurityContext == null)
@@ -208,6 +249,7 @@ namespace System.Net.Security {
             GlobalLog.Leave("SecureChannel#" + ValidationHelper.HashString(this) + "::RemoteCertificate{get;}", (result == null? "null" :result.Subject));
             
             return result;
+#endif
         }
 
         internal ChannelBinding GetChannelBinding(ChannelBindingKind kind)
@@ -456,6 +498,7 @@ namespace System.Net.Security {
 
             if (IsValidContext)
             {
+#if MONO_NOT_IMPLEMENTED
                 IssuerListInfoEx issuerList = (IssuerListInfoEx)SSPIWrapper.QueryContextAttributes(GlobalSSPI.SSPISecureChannel, m_SecurityContext, ContextAttribute.IssuerListInfoEx);
                 try
                 {
@@ -488,6 +531,7 @@ namespace System.Net.Security {
                         issuerList.aIssuers.Close();
                     }
                 }
+#endif
             }
             return issuers;
         }
@@ -976,6 +1020,7 @@ namespace System.Net.Security {
                                             ref m_Attributes
                                             );
 
+#if !MONO
                             // This only needs to happen the first time per context.
                             if ((errorCode == (int)SecurityStatus.OK || errorCode == (int)SecurityStatus.ContinueNeeded) 
                                 && ComNetOS.IsWin8orLater && Microsoft.Win32.UnsafeNativeMethods.IsPackagedProcess.Value)
@@ -988,6 +1033,7 @@ namespace System.Net.Security {
                                                 UnsafeNclNativeMethods.AppXHelper.PrimaryWindowHandle.Value);
                                 Debug.Assert(setError == 0, "SetContextAttributes error: " + setError);
                             }
+#endif
                         }
                         else
                         {
@@ -1050,6 +1096,9 @@ namespace System.Net.Security {
         --*/
         internal void ProcessHandshakeSuccess() {
             GlobalLog.Enter("SecureChannel#" + ValidationHelper.HashString(this) + "::ProcessHandshakeSuccess");
+#if MONO
+            m_HeaderSize = m_TrailerSize = 0;
+#else
             StreamSizes streamSizes = SSPIWrapper.QueryContextAttributes(GlobalSSPI.SSPISecureChannel, m_SecurityContext, ContextAttribute.StreamSizes) as StreamSizes;
             if (streamSizes != null) {
                 try
@@ -1067,6 +1116,7 @@ namespace System.Net.Security {
                 }
             }
             m_ConnectionInfo = SSPIWrapper.QueryContextAttributes(GlobalSSPI.SSPISecureChannel, m_SecurityContext, ContextAttribute.ConnectionInfo) as SslConnectionInfo;
+#endif
             GlobalLog.Leave("SecureChannel#" + ValidationHelper.HashString(this) + "::ProcessHandshakeSuccess");
         }
 
@@ -1090,6 +1140,13 @@ namespace System.Net.Security {
             GlobalLog.Print("SecureChannel#" + ValidationHelper.HashString(this) + "::Encrypt() - offset: " + offset.ToString() + " size: " + size.ToString() +" buffersize: " + buffer.Length.ToString() );
             GlobalLog.Print("SecureChannel#" + ValidationHelper.HashString(this) + "::Encrypt() buffer:[" + Encoding.ASCII.GetString(buffer, 0, Math.Min(buffer.Length,128)) + "]");
 
+#if MONO
+            var incoming = new SecurityBuffer (buffer, offset, size, BufferType.Data);
+            var errorCode = (SecurityStatus)SSPIWrapper.EncryptMessage(m_SecModule, m_SecurityContext, incoming, 0);
+            output = incoming.token;
+            resultSize = incoming.size;
+            return errorCode;
+#else
             byte[] e_writeBuffer;
             try
             {
@@ -1146,6 +1203,7 @@ namespace System.Net.Security {
                 return SecurityStatus.OK;
 
             }
+#endif
         }
 
         internal SecurityStatus Decrypt(byte[] payload, ref int offset, ref int count) {
@@ -1162,6 +1220,20 @@ namespace System.Net.Security {
                 throw new ArgumentOutOfRangeException("count");
             }
 
+#if MONO
+            var buffer = new SecurityBuffer (payload, offset, count, BufferType.Data);
+            var errorCode = (SecurityStatus)SSPIWrapper.DecryptMessage(m_SecModule, m_SecurityContext, buffer, 0);
+            count = buffer.size;
+            if (buffer.type == BufferType.Empty) {
+                offset = count = 0;
+            } else if (payload != buffer.token) {
+                Buffer.BlockCopy(buffer.token, buffer.offset, payload, 0, buffer.size);
+                Array.Clear(buffer.token, 0, buffer.token.Length);
+                offset = 0;
+            } else {
+                offset = buffer.offset;
+            }
+#else
             // decryption using SCHANNEL requires four buffers
             SecurityBuffer[] decspc = new SecurityBuffer[4];
             decspc[0] = new SecurityBuffer(payload, offset, count, BufferType.Data);
@@ -1182,6 +1254,7 @@ namespace System.Net.Security {
                     break;
                 }
             }
+#endif
           
             return errorCode;
         }
@@ -1206,6 +1279,25 @@ namespace System.Net.Security {
             SslPolicyErrors sslPolicyErrors = SslPolicyErrors.None;
             // we don't catch exceptions in this method, so it's safe for "accepted" be initialized with true
             bool success = false;
+
+#if MONO
+            X509Certificate2Collection remoteCertificateStore;
+            var remoteCertificateEx = GetRemoteCertificate(out remoteCertificateStore);
+
+            success = SSPIWrapper.CheckRemoteCertificate(m_SecurityContext);
+
+            if (remoteCertValidationCallback != null)
+            {
+                success = remoteCertValidationCallback(m_HostName, remoteCertificateEx, null, sslPolicyErrors);
+            }
+            else
+            {
+                if (sslPolicyErrors == SslPolicyErrors.RemoteCertificateNotAvailable && !m_RemoteCertRequired)
+                    success = true;
+                else
+                    success = (sslPolicyErrors == SslPolicyErrors.None);
+            }
+#else
             X509Chain chain = null;
             X509Certificate2 remoteCertificateEx = null;
 
@@ -1309,6 +1401,7 @@ namespace System.Net.Security {
                     remoteCertificateEx.Reset();
             }
             GlobalLog.Leave("SecureChannel#" + ValidationHelper.HashString(this) + "::VerifyRemoteCertificate", success.ToString());
+#endif
             return success;
         }
 
