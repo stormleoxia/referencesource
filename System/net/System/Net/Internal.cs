@@ -1450,6 +1450,7 @@ typedef struct _SCHANNEL_CRED
 
     } // SecureCredential
 
+#endif // !FEATURE_PAL
 
     [StructLayout(LayoutKind.Sequential)]
     internal unsafe struct SecurityBufferStruct {
@@ -1585,8 +1586,6 @@ typedef struct _SCHANNEL_CRED
         internal int cbApplicationDataLength;
         internal int dwApplicationDataOffset;
     }
-
-#endif // !FEATURE_PAL
 
     //
     // WebRequestPrefixElement
