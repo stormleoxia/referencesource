@@ -6,3 +6,11 @@ Known conditionals:
 
 * MONO_NOT_IMPLEMENTED: not yet implemented in Mono.
 
+Other defines which are used when building the BCL and tests:
+
+* MONO_INSIDE_SYSTEM: we're building System.dll.
+
+* MONO_INSIDE_MONO_SECURITY: we're building Mono.Security.dll.
+
+* MONO_SECURITY_ALIAS: we're using Mono.Security from the "MonoSecurity" extern alias.
+
