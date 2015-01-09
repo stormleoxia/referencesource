@@ -443,7 +443,9 @@ namespace System.Net.Security {
                             // For v 1.1 compat We want to ensure the store is opened under the **process** acount.
                             //
                             try {
+#if !DISABLE_CAS_USE
                                 using (WindowsIdentity.Impersonate(IntPtr.Zero))
+#endif
                                 {
                                     store.Open(OpenFlags.ReadOnly | OpenFlags.OpenExistingOnly);
                                     GlobalLog.Print("SecureChannel::EnsureStoreOpened() storeLocation:" + storeLocation + " returned store:" + store.GetHashCode().ToString("x"));
@@ -904,7 +906,9 @@ namespace System.Net.Security {
                 //
                 // For v 1.1 compat We want to ensure the credential are accessed under >>process<< acount.
                 //
+#if !DISABLE_CAS_USE
                 using (WindowsIdentity.Impersonate(IntPtr.Zero))
+#endif
                 {
                     return SSPIWrapper.AcquireCredentialsHandle(GlobalSSPI.SSPISecureChannel, SecurityPackage, credUsage, secureCredential);
                 }
