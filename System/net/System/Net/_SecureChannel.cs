@@ -1292,22 +1292,11 @@ namespace System.Net.Security {
             bool success = false;
 
 #if MONO
-            X509Certificate2Collection remoteCertificateStore;
-            var remoteCertificateEx = GetRemoteCertificate(out remoteCertificateStore);
-
-            success = SSPIWrapper.CheckRemoteCertificate(m_SecurityContext);
-
-            if (remoteCertValidationCallback != null)
-            {
-                success = remoteCertValidationCallback(m_HostName, remoteCertificateEx, null, sslPolicyErrors);
-            }
+            if (IsServer)
+                // FIXME
+                success = true;
             else
-            {
-                if (sslPolicyErrors == SslPolicyErrors.RemoteCertificateNotAvailable && !m_RemoteCertRequired)
-                    success = true;
-                else
-                    success = (sslPolicyErrors == SslPolicyErrors.None);
-            }
+                success = SSPIWrapper.CheckRemoteCertificate(m_SecurityContext);
 #else
             X509Chain chain = null;
             X509Certificate2 remoteCertificateEx = null;
