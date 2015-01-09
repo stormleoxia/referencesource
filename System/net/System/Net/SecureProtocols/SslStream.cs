@@ -99,6 +99,24 @@ using System.Net.Configuration;
             _SslState = new SslState(innerStream, _userCertValidationCallbackWrapper, _userCertSelectionCallbackWrapper, encryptionPolicy);
         }
 
+#if MONO
+        SSPIConfiguration _Configuration;
+
+        internal SslStream(Stream innerStream, bool leaveInnerStreamOpen, RemoteCertificateValidationCallback userCertificateValidationCallback, 
+            LocalCertificateSelectionCallback userCertificateSelectionCallback, EncryptionPolicy encryptionPolicy, SSPIConfiguration config)
+            : base(innerStream, leaveInnerStreamOpen)
+        {
+            if (encryptionPolicy != EncryptionPolicy.RequireEncryption && encryptionPolicy != EncryptionPolicy.AllowNoEncryption && encryptionPolicy != EncryptionPolicy.NoEncryption) 
+                throw new ArgumentException(SR.GetString(SR.net_invalid_enum, "EncryptionPolicy"), "encryptionPolicy");
+
+            _userCertificateValidationCallback = userCertificateValidationCallback;
+            _userCertificateSelectionCallback  = userCertificateSelectionCallback;
+            RemoteCertValidationCallback _userCertValidationCallbackWrapper = new RemoteCertValidationCallback(userCertValidationCallbackWrapper);
+            LocalCertSelectionCallback   _userCertSelectionCallbackWrapper  = userCertificateSelectionCallback==null  ? null : new LocalCertSelectionCallback(userCertSelectionCallbackWrapper);
+            _SslState = new SslState(innerStream, _userCertValidationCallbackWrapper, _userCertSelectionCallbackWrapper, encryptionPolicy, config);
+        }
+#endif
+
         private bool userCertValidationCallbackWrapper(string hostName, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
             m_RemoteCertificateOrBytes = certificate == null? null: certificate.GetRawCertData();
