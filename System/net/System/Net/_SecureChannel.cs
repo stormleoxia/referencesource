@@ -4,6 +4,15 @@
 // </copyright>
 //------------------------------------------------------------------------------
 
+#if MONO_SECURITY_ALIAS
+extern alias MonoSecurity;
+using MonoSecurity::System.Security.Cryptography.X509Certificates;
+using X509Certificate = System.Security.Cryptography.X509Certificates.X509Certificate;
+using X509CertificateCollection = System.Security.Cryptography.X509Certificates.X509CertificateCollection;
+#else
+using System.Security.Cryptography.X509Certificates;
+#endif
+
 namespace System.Net.Security {
     using System.Diagnostics;
     using System.Net;
@@ -11,7 +20,6 @@ namespace System.Net.Security {
     using System.Runtime.InteropServices;
     using System.Security.Authentication.ExtendedProtection;
     using System.Security.Cryptography;
-    using System.Security.Cryptography.X509Certificates;
     using System.Text;
     using System.Threading;
     using System.Security.Permissions;
