@@ -60,7 +60,7 @@ using System.Net.Configuration;
     //
     //
     //
-    public class SslStream: AuthenticatedStream
+    public partial class SslStream: AuthenticatedStream
     {
         private SslState _SslState;
         private RemoteCertificateValidationCallback _userCertificateValidationCallback;

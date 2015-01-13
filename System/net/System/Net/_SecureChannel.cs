@@ -35,7 +35,7 @@ namespace System.Net.Security {
     //  for the SSL Stream to utilize.
     //
 
-    internal class SecureChannel {
+    internal partial class SecureChannel {
         //also used as a lock object
         internal const string SecurityPackage = "Microsoft Unified Security Protocol Provider";
         private  static readonly object s_SyncObject = new object();

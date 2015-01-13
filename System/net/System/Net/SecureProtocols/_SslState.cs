@@ -34,7 +34,7 @@ namespace System.Net.Security {
     using System.ComponentModel;
     using System.Diagnostics;
 
-    internal class SslState {
+    internal partial class SslState {
 
         static int UniqueNameInteger = 123;
         static AsyncProtocolCallback _PartialFrameCallback  = new AsyncProtocolCallback(PartialFrameCallback);
