@@ -289,7 +289,7 @@ namespace System.Net {
         internal static uint GetThreadId()
         {
 #if MONO
-			uint threadId = (uint)Thread.CurrentThread.ManagedThreadId;
+            uint threadId = (uint)Thread.CurrentThread.ManagedThreadId;
 #else
             uint threadId = UnsafeNclNativeMethods.GetCurrentThreadId();
 #endif

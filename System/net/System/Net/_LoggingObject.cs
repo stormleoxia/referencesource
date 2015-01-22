@@ -216,7 +216,7 @@ namespace System.Net {
                 }
                 if (threadId == 0) {
 #if MONO
-					threadId = Thread.CurrentThread.ManagedThreadId;
+                    threadId = Thread.CurrentThread.ManagedThreadId;
 #else
                     threadId = UnsafeNclNativeMethods.GetCurrentThreadId();
 #endif
