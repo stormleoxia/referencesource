@@ -950,9 +950,7 @@ namespace System.Net {
     internal static class ExceptionHelper
     {
         internal static readonly KeyContainerPermission KeyContainerPermissionOpen = new KeyContainerPermission(KeyContainerPermissionFlags.Open);
-#if MONO_FEATURE_WEB_STACK
         internal static readonly WebPermission WebPermissionUnrestricted = new WebPermission(NetworkAccess.Connect);
-#endif
         internal static readonly SecurityPermission UnmanagedPermission = new SecurityPermission(SecurityPermissionFlag.UnmanagedCode);
         internal static readonly SocketPermission UnrestrictedSocketPermission = new SocketPermission(PermissionState.Unrestricted);
         internal static readonly SecurityPermission InfrastructurePermission = new SecurityPermission(SecurityPermissionFlag.Infrastructure);
