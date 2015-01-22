@@ -1781,6 +1781,7 @@ typedef struct _SCHANNEL_CRED
         }
 
     }
+#endif
 
 
     internal delegate bool HttpAbortDelegate(HttpWebRequest request, WebException webException);
@@ -1892,6 +1893,7 @@ typedef struct _SCHANNEL_CRED
         WriteWait = 2,
     }
 
+#if MONO_FEATURE_WEB_STACK
     //
     // HttpVerb - used to define various per Verb Properties
     //
