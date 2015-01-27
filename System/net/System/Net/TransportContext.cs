@@ -14,6 +14,7 @@ namespace System.Net
         public abstract ChannelBinding GetChannelBinding(ChannelBindingKind kind);
     }
 
+#if MONO_FEATURE_WEB_STACK
     internal class ConnectStreamContext : TransportContext
     {
         internal ConnectStreamContext(ConnectStream connectStream)
@@ -29,7 +30,9 @@ namespace System.Net
 
         private ConnectStream connectStream;
     }
+#endif
 
+#if MONO_FEATURE_NEW_TLS
     internal class SslStreamContext : TransportContext
     {
         internal SslStreamContext(SslStream sslStream)
@@ -45,7 +48,9 @@ namespace System.Net
 
         private SslStream sslStream;
     }
+#endif
 
+#if MONO_FEATURE_WEB_STACK
     internal class HttpListenerRequestContext : TransportContext
     {
         internal HttpListenerRequestContext(HttpListenerRequest request)
@@ -66,6 +71,7 @@ namespace System.Net
 
         private HttpListenerRequest request;
     }
+#endif
 
     // Holds a cached Endpoint binding to be reused by HttpWebRequest preauthentication
     internal class CachedTransportContext : TransportContext
