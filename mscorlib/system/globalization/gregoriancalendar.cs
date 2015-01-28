@@ -80,7 +80,6 @@ namespace System.Globalization {
                                                 "type", 
                                                 "GregorianCalendar"));
             }
-#endif
         }
 #endregion Serialization
 
