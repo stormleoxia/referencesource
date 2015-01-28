@@ -19,7 +19,7 @@ Revision History:
     15-Sept-2003    Implemented concurent rehanshake
 
 --*/
-
+#if MONO_FEATURE_NEW_TLS
 namespace System.Net.Security {
     using System;
     using System.IO;
@@ -1744,3 +1744,4 @@ namespace System.Net.Security {
 #endif
     }
 }
+#endif

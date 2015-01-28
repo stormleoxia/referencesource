@@ -15,6 +15,7 @@ Author:
 Revision History:
 
 --*/
+#if MONO_FEATURE_NEW_TLS
 namespace System.Net.Security {
 using System;
 using System.IO;
@@ -506,6 +507,7 @@ using System.Net.Configuration;
    }
 
 }
+#endif
 
 
 

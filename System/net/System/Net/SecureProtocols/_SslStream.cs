@@ -16,7 +16,7 @@ Revision History:
     22-Aug-2003 New design that has obsoleted SslClientStream and SslServerStream class
 
 --*/
-
+#if MONO_FEATURE_NEW_TLS
 namespace System.Net.Security {
     using System;
     using System.IO;
@@ -1058,3 +1058,4 @@ namespace System.Net.Security {
         //
     }
 }
+#endif
