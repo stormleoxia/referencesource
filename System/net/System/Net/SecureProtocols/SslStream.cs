@@ -240,7 +240,11 @@ using System.Net.Configuration;
         {
             get
             {
+                #if MONO_NOT_SUPPORTED
                 return new SslStreamContext(this);
+                #else
+                throw new NotSupportedException();
+                #endif
             }
         }
 

@@ -4,7 +4,7 @@
 // </copyright>
 //------------------------------------------------------------------------------
 #if MONO_FEATURE_NEW_TLS
-#if MONO_SECURITY_ALIAS
+#if MONO_SECURITY_ALIAS && MONO_INSIDE_SYSTEM
 extern alias MonoSecurity;
 using MonoSecurity::System.Security.Cryptography.X509Certificates;
 using X509Certificate = System.Security.Cryptography.X509Certificates.X509Certificate;
