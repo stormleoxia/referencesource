@@ -3,8 +3,8 @@
 //     Copyright (c) Microsoft Corporation.  All rights reserved.
 // </copyright>
 //------------------------------------------------------------------------------
-#if MONO_FEATURE_NEW_TLS
-#if MONO_SECURITY_ALIAS && MONO_INSIDE_SYSTEM
+#if MONO_FEATURE_NEW_TLS && SECURITY_DEP
+#if MONO_SECURITY_ALIAS
 extern alias MonoSecurity;
 using MonoSecurity::System.Security.Cryptography.X509Certificates;
 using X509Certificate = System.Security.Cryptography.X509Certificates.X509Certificate;
