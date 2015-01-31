@@ -6,7 +6,6 @@
 
 namespace System.Net {
     using System.IO;
-	using System.Text;
     using System.Reflection;
     using System.Collections;
     using System.Collections.Specialized;
