@@ -57,7 +57,11 @@ namespace System.Globalization {
 
     [Serializable]
 [System.Runtime.InteropServices.ComVisible(true)]
+#if MONO_CULTURE_DATA
+    partial class DateTimeFormatInfo
+#else
     public sealed class DateTimeFormatInfo : ICloneable, IFormatProvider
+#endif
     {
         //
         // Note, some fields are derived so don't really need to be serialized, but we can't mark as
@@ -122,6 +126,7 @@ namespace System.Globalization {
         internal int firstDayOfWeek = -1;
         internal int calendarWeekRule = -1;
 
+[NonSerialized]
         [OptionalField(VersionAdded = 1)]
         internal String fullDateTimePattern  = null;        // long date + long time (whidbey expects, arrowhead doesn't)
 
@@ -191,7 +196,7 @@ namespace System.Globalization {
         static bool InitPreferExistingTokens()
         {
             bool ret = false;
-#if !FEATURE_CORECLR
+#if !FEATURE_CORECLR && !MONO
             ret = DateTime.LegacyParseMode();
 #endif
             return ret;
@@ -2159,7 +2164,7 @@ namespace System.Globalization {
                 ClearTokenHashTable();
             }
         }
-
+#if !MONO_CULTURE_DATA
         //
         // Positive TimeSpan Pattern
         //
@@ -2183,7 +2188,7 @@ namespace System.Globalization {
                 return m_fullTimeSpanPositivePattern;
             }
         }
-
+#endif
         //
         // Negative TimeSpan Pattern
         //
@@ -2216,7 +2221,6 @@ namespace System.Globalization {
                 return m_compareInfo;
             }
         }
-
 
         internal const DateTimeStyles InvalidDateTimeStyles = ~(DateTimeStyles.AllowLeadingWhite | DateTimeStyles.AllowTrailingWhite
                                                                | DateTimeStyles.AllowInnerWhite | DateTimeStyles.NoCurrentDateDefault
