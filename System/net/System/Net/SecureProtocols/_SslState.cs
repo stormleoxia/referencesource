@@ -19,12 +19,17 @@ Revision History:
     15-Sept-2003    Implemented concurent rehanshake
 
 --*/
+#if MONO_FEATURE_NEW_TLS && SECURITY_DEP
+#if MONO_X509_ALIAS
+extern alias PrebuiltSystem;
+using X509CertificateCollection = PrebuiltSystem::System.Security.Cryptography.X509Certificates.X509CertificateCollection;
+#endif
+using System.Security.Cryptography.X509Certificates;
 
 namespace System.Net.Security {
     using System;
     using System.IO;
     using System.Threading;
-    using System.Security.Cryptography.X509Certificates;
     using System.Collections;
     using System.Runtime.InteropServices;
     using System.Globalization;
@@ -34,7 +39,7 @@ namespace System.Net.Security {
     using System.ComponentModel;
     using System.Diagnostics;
 
-    internal class SslState {
+    internal partial class SslState {
 
         static int UniqueNameInteger = 123;
         static AsyncProtocolCallback _PartialFrameCallback  = new AsyncProtocolCallback(PartialFrameCallback);
@@ -120,6 +125,17 @@ namespace System.Net.Security {
             _CertSelectionDelegate  = certSelectionCallback;
             _EncryptionPolicy = encryptionPolicy;
         }
+
+#if MONO
+        private readonly SSPIConfiguration _Configuration;
+
+        internal SslState(Stream innerStream, RemoteCertValidationCallback certValidationCallback, LocalCertSelectionCallback  certSelectionCallback, EncryptionPolicy encryptionPolicy, SSPIConfiguration config)
+            : this(innerStream, certValidationCallback, certSelectionCallback, encryptionPolicy)
+        {
+            _Configuration = config;
+        }
+#endif
+
         //
         //
         //
@@ -175,8 +191,13 @@ namespace System.Net.Security {
 
             _Exception = null;
             try {
+#if MONO
+                _Context = new SecureChannel(targetHost, isServer, (SchProtocols)((int)enabledSslProtocols), serverCertificate, clientCertificates, remoteCertRequired,
+                    checkCertName, checkCertRevocationStatus, _EncryptionPolicy, _CertSelectionDelegate, _CertValidationDelegate, _Configuration);
+#else
                 _Context = new SecureChannel(targetHost, isServer, (SchProtocols)((int)enabledSslProtocols), serverCertificate, clientCertificates, remoteCertRequired,
                                                                checkCertName, checkCertRevocationStatus, _EncryptionPolicy, _CertSelectionDelegate);
+#endif
             }
             catch (Win32Exception e) {
                 throw new AuthenticationException(SR.GetString(SR.net_auth_SSPI), e);
@@ -1728,3 +1749,4 @@ namespace System.Net.Security {
 #endif
     }
 }
+#endif
