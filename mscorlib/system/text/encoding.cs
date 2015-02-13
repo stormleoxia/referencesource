@@ -18,7 +18,9 @@ namespace System.Text
     using System.Text;
     using System.Diagnostics.CodeAnalysis;
     using System.Diagnostics.Contracts;
+#if FEATURE_CODEPAGES_FILE            
     using Win32Native = Microsoft.Win32.Win32Native;
+#endif
 
     // This abstract base class represents a character encoding. The class provides
     // methods to convert arrays and strings of Unicode characters to and from
@@ -504,8 +506,21 @@ namespace System.Text
                                 throw new NotSupportedException(
                                     Environment.GetResourceString("NotSupported_NoCodepageData", codepage));
                             }
-
+#if MONO_HYBRID_ENCODING_SUPPORT
+                            switch (codepage) {
+                            case CodePageUTF32:             // 12000
+                                result = UTF32;
+                                break;
+                            case CodePageUTF32BE:           // 12001
+                                result = new UTF32Encoding(true, true);
+                                break;
+                            default:
+                                result = (Encoding)(EncodingHelper.InvokeI18N ("GetEncoding", codepage));
+                                break;
+                            }
+#else
                             result = UTF8;
+#endif
                             break;
 #endif // FEATURE_CODEPAGES_FILE
                         }
@@ -1355,13 +1370,25 @@ namespace System.Text
                 enc = GetEncoding(codePage);
 #else // FEATURE_CODEPAGES_FILE            
 
+#if MONO_HYBRID_ENCODING_SUPPORT
+            enc = EncodingHelper.GetDefaultEncoding ();
+            enc.m_isReadOnly = true;
+#else
             // For silverlight we use UTF8 since ANSI isn't available
             enc = UTF8;
+#endif
 
 #endif //FEATURE_CODEPAGES_FILE            
 
             return (enc);
         }
+
+#if MONO_HYBRID_ENCODING_SUPPORT
+        internal void setReadOnly (bool value = true)
+        {
+                   m_isReadOnly = value;
+        }
+#endif
 
         // Returns an encoding for the system's current ANSI code page.
         //
