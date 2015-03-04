@@ -33,5 +33,9 @@ namespace System.Runtime
         internal const string TraceCodeTag = "TraceIdentifier";
         internal const string TraceRecordTag = "TraceRecord";
         internal const string ValueTag = "Value";
+
+	internal const string ActivityId = "ActivityId";
+        internal const string DiagnosticsNamespace = "DiagnosticsNamespace";
+	    
     }
 }

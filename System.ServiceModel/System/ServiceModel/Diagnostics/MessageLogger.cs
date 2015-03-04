@@ -52,7 +52,7 @@ namespace System.ServiceModel.Diagnostics
         static int maxMessagesToLog;
         static int numberOfMessagesToLog;
         static int maxMessageSize;
-        static PiiTraceSource messageTraceSource;
+        //static PiiTraceSource messageTraceSource;
         static bool attemptedTraceSourceInitialization = false;
         static bool initialized = false;
         static bool initializing = false;
@@ -406,8 +406,8 @@ namespace System.ServiceModel.Diagnostics
             {
                 record.WriteTo(xmlWriter);
                 xmlWriter.Close();
-                TraceXPathNavigator navigator = xmlWriter.Navigator;
-                
+                var navigator = xmlWriter.Navigator;
+               #if false 
                 if ((MessageLogger.messageTraceSource != null && 
                     !MessageLogger.messageTraceSource.ShouldLogPii) ||
                     !MessageLogger.LogKnownPii)
@@ -421,7 +421,7 @@ namespace System.ServiceModel.Diagnostics
                         }
                     }
                 }
-
+#endif
                 LogInternal(record.MessageLoggingSource, navigator);
             }
             catch (PlainXmlWriter.MaxSizeExceededException)

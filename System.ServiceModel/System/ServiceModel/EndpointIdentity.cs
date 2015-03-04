@@ -9,8 +9,8 @@ namespace System.ServiceModel
     using System.Collections;
     using System.Collections.Generic;
     using System.Diagnostics;
-    using System.DirectoryServices;
-    using System.DirectoryServices.ActiveDirectory;
+    //using System.DirectoryServices;
+    //using System.DirectoryServices.ActiveDirectory;
     using System.Security.Principal;
     using System.ServiceModel.Security;
     using System.IdentityModel.Claims;
