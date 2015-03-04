@@ -699,7 +699,7 @@ namespace System.IO {
         }
 #endif
 
-#if !FEATURE_PAL && FEATURE_ASYNC_IO
+#if FEATURE_ASYNC_IO
         [HostProtection(ExternalThreading = true)]
         [ComVisible(false)]
         public Task WriteAsync(Byte[] buffer, int offset, int count)
@@ -730,7 +730,7 @@ namespace System.IO {
                             return default(VoidTaskResult);
                         });
         }        
-#endif // !FEATURE_PAL && FEATURE_ASYNC_IO
+#endif // FEATURE_ASYNC_IO
 
         public abstract long Seek(long offset, SeekOrigin origin);
 
@@ -786,7 +786,7 @@ namespace System.IO {
             return new SyncStream(stream);
         }
 
-#if !FEATURE_PAL  // This method shouldn't have been exposed in Dev10 (we revised object invariants after locking down).
+#if !FEATURE_PAL || MONO // This method shouldn't have been exposed in Dev10 (we revised object invariants after locking down).
         [Obsolete("Do not call or override this method.")]
         protected virtual void ObjectInvariant() 
         {

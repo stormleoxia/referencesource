@@ -20,7 +20,7 @@ using System.Runtime.Versioning;
 namespace System.Xml {
 
     // XmlReaderSettings class specifies basic features of an XmlReader.
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !MOBILE
     [PermissionSetAttribute(SecurityAction.InheritanceDemand, Name = "FullTrust")]
 #endif
     public sealed class XmlReaderSettings {
@@ -501,7 +501,7 @@ namespace System.Xml {
 
         void Initialize(XmlResolver resolver) {
             nameTable = null;
-#if !SILVERLIGHT
+#if !SILVERLIGHT && !MOBILE
             if (!EnableLegacyXmlSettings())
             {
                 xmlResolver = resolver;
@@ -722,16 +722,19 @@ namespace System.Xml {
             }
 
             bool enableSettings = false; // default value
+#if !MOBILE
             if (!ReadSettingsFromRegistry(Registry.LocalMachine, ref enableSettings))
             {
                 // still ok if this call return false too as we'll use the default value which is false
                 ReadSettingsFromRegistry(Registry.CurrentUser, ref enableSettings);
             }
+#endif
 
             s_enableLegacyXmlSettings = enableSettings;
             return s_enableLegacyXmlSettings.Value;
         }
 
+#if !MOBILE
         [RegistryPermission(SecurityAction.Assert, Unrestricted = true)]
         [SecuritySafeCritical]
         private static bool ReadSettingsFromRegistry(RegistryKey hive, ref bool value)
@@ -757,6 +760,7 @@ namespace System.Xml {
 
             return false;
         }
+#endif // MOBILE
 
 #endif // SILVERLIGHT
         
