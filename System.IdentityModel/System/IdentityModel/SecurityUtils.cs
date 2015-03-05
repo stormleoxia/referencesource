@@ -181,6 +181,9 @@ namespace System.IdentityModel
             [SecuritySafeCritical]
             get
             {
+#if MONO
+                return false;
+#else
                 if (fipsAlgorithmPolicy == -1)
                 {
                     if (Environment.OSVersion.Version.Major >= WindowsVistaMajorNumber)
@@ -202,6 +205,7 @@ namespace System.IdentityModel
                     }
                 }
                 return fipsAlgorithmPolicy == 1;
+#endif
             }
         }
 
@@ -799,6 +803,7 @@ namespace System.IdentityModel
             get { return _policyEnforcement; }
         }
 
+#if !MONO
         /// <summary>
         /// ServiceBinding check has the following logic:
         /// 1. Check PolicyEnforcement - never => return true;
@@ -891,6 +896,7 @@ namespace System.IdentityModel
             else
                 throw DiagnosticUtility.ExceptionUtility.ThrowHelperError(new SecurityTokenException(SR.GetString(SR.InvalidServiceBindingInSspiNegotiationServiceBindingNotMatched, serviceBinding)));
         }
+#endif
 
         /// <summary>
         /// Keep this in [....] with \System\ServiceModel\Channels\ChannelBindingUtility.cs

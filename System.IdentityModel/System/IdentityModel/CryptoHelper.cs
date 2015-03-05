@@ -287,6 +287,7 @@ namespace System.IdentityModel
                 return keySizeInBytes;
             }
 
+#if !MONO
             /// <summary>
             /// Gets a security key identifier which contains the BinarySecretKeyIdentifierClause or 
             /// EncryptedKeyIdentifierClause if the wrapping credentials is available.
@@ -320,6 +321,7 @@ namespace System.IdentityModel
                     return new SecurityKeyIdentifier(new EncryptedKeyIdentifierClause(wrappedKey, wrappingCredentials.Algorithm, wrappingCredentials.SecurityKeyIdentifier));
                 }
             }
+#endif
 
         }
 

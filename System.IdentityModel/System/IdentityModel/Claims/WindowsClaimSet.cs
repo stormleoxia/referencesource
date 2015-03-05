@@ -305,6 +305,7 @@ namespace System.IdentityModel.Claims
             }
         }
 
+#if !MONO
         // Copy from System\Security\Principal\WindowsIdentity.cs
         [Fx.Tag.SecurityNote(Critical = "Uses critical type SafeHGlobalHandle.",
             Safe = "Performs a Demand for full trust.")]
@@ -343,6 +344,7 @@ namespace System.IdentityModel.Claims
             }
             return safeAllocHandle;
         }
+#endif
 
         [Fx.Tag.SecurityNote(Critical = "Uses critical type SafeHGlobalHandle.",
             Safe = "Performs a Demand for full trust.")]
