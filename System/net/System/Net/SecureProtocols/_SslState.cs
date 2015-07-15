@@ -1664,7 +1664,7 @@ namespace System.Net.Security {
         {
             AsyncProtocolRequest asyncRequest = (AsyncProtocolRequest)state;
             try {
-                if (_PendingReHandshake == 1)
+                if (_PendingReHandshake == 1 && asyncRequest.Buffer == null)
                 {
                     // resume as read a blob
                     StartReceiveBlob(asyncRequest.Buffer, asyncRequest);
