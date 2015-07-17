@@ -33,20 +33,7 @@
 namespace System.Threading
 {
     using System.Security;
-    using System.Runtime.Remoting;
-    using System.Security.Permissions;
-    using System;
-    using System.Runtime.CompilerServices;
-    using System.Runtime.ConstrainedExecution;
-    using System.Runtime.InteropServices;
-    using System.Runtime.Versioning;
-    using System.Collections.Generic;
     using System.Diagnostics.Contracts;
-    using System.Diagnostics.CodeAnalysis;
-    using System.Diagnostics.Tracing;
-#if !MONO
-    using Microsoft.Win32;
-#endif
 
     //
     // Interface to something that can be queued to the TP.  This is implemented by
@@ -75,6 +62,27 @@ namespace System.Threading
     [CLSCompliant(false)]
     [System.Runtime.InteropServices.ComVisible(true)]
     unsafe public delegate void IOCompletionCallback(uint errorCode, uint numBytes, NativeOverlapped* pOVERLAP);
+}
+
+#if !DISABLE_MS_THREADPOOL
+
+namespace System.Threading.Microsoft
+{
+    using System.Security;
+    using System.Runtime.Remoting;
+    using System.Security.Permissions;
+    using System;
+    using System.Runtime.CompilerServices;
+    using System.Runtime.ConstrainedExecution;
+    using System.Runtime.InteropServices;
+    using System.Runtime.Versioning;
+    using System.Collections.Generic;
+    using System.Diagnostics.Contracts;
+    using System.Diagnostics.CodeAnalysis;
+    using System.Diagnostics.Tracing;
+#if !MONO
+    using Microsoft.Win32;
+#endif
 
     internal static class ThreadPoolGlobals
     {
@@ -1365,8 +1373,10 @@ namespace System.Threading
     }
 
     [HostProtection(Synchronization=true, ExternalThreading=true)]
-    public static class ThreadPool
+    internal static class ThreadPool
     {
+        internal static readonly bool UseMicrosoftThreadPool = Environment.GetEnvironmentVariable ("MONO_THREADPOOL") == "microsoft";
+
         #if FEATURE_CORECLR
         [System.Security.SecurityCritical] // auto-generated
         #else
@@ -1956,3 +1966,5 @@ namespace System.Threading
         private static extern bool BindIOCompletionCallbackNative(IntPtr fileHandle);
     }
 }
+
+#endif
