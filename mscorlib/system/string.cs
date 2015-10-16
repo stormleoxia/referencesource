@@ -3403,41 +3403,7 @@ namespace System {
             return Convert.DefaultToType((IConvertible)this, type, provider);
         }
 
-<<<<<<< HEAD
-        //
-        // Silverlight v2 - v3 defaulted to using Ordinal for the following APIs
-        //    [System.String]
-        //        public Boolean EndsWith(String value)
-        //        public Boolean EndsWith(String value, Boolean ignoreCase, CultureInfo culture)
-        //        public int IndexOf(String value)
-        //        public int IndexOf(String value, int startIndex)
-        //        public int IndexOf(String value, int startIndex, int count)
-        //        public int LastIndexOf(String value)
-        //        public int LastIndexOf(String value, int startIndex)
-        //        public int LastIndexOf(String value, int startIndex, int count)
-        //        public Boolean StartsWith(String value)
-        //        public Boolean StartsWith(String value, Boolean ignoreCase, CultureInfo culture)
-        //        public String ToLower()
-        //        public String ToUpper()
-        //    [System.Char]
-        //        public static char ToUpper(char c)
-        //        public static char ToLower(char c)
-        //
-        // Starting with Silverlight 4 these APIs default to using CurrentCulture
-        // for alignment with Desktop CLR.  Applications can enable the legacy v2-v3
-        // System.String behavior by using the 'APP_EARLIER_THAN_SL4.0' configuration option.
-        //        
-        internal static bool LegacyMode 
-        {
-            get
-            {
-                return CompatibilitySwitches.IsAppEarlierThanSilverlight4;
-            }
-        }
-
 #if !MONO
-=======
->>>>>>> master
         // Is this a string that can be compared quickly (that is it has only characters > 0x80 
         // and not a - or '
         [System.Security.SecurityCritical]  // auto-generated

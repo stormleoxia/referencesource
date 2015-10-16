@@ -181,7 +181,7 @@ namespace System.Threading
 #endif
 #endif
 
-
+#if FEATURE_CORECLR
         [ThreadStatic]
         private static SynchronizationContext s_threadStaticContext;
 

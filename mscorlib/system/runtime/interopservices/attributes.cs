@@ -163,7 +163,6 @@ namespace System.Runtime.InteropServices{
         public String Value { get { return _importClassName; } }
     }
 
-#if MOBILE_LEGACY
     [AttributeUsage(AttributeTargets.Method, Inherited = false)] 
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class LCIDConversionAttribute : Attribute
@@ -244,7 +243,6 @@ namespace System.Runtime.InteropServices{
         }
         public IDispatchImplType Value { get {return _val;} }   
     }
-#endif
 
     [AttributeUsage(AttributeTargets.Class, Inherited = true)] 
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -1068,7 +1066,7 @@ namespace System.Runtime.InteropServices{
         public Type SourceInterface { get {return _SourceInterface;} }       
         public Type EventProvider { get {return _EventProvider;} }
     }
-
+#endif
 #if FEATURE_COMINTEROP || MOBILE_LEGACY
     [AttributeUsage(AttributeTargets.Assembly, Inherited = false)] 
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -1165,6 +1163,7 @@ namespace System.Runtime.InteropServices{
         public Type ClassType { get { return _classType; } }
         public String MethodName { get { return _methodName; } }
     }    
-
+#endif
 }
 
+#endif

@@ -437,8 +437,9 @@ namespace System.Threading {
             m_ExecutionContext = value.DangerousGetRawExecutionContext();
             ExecutionContextBelongsToCurrentScope = belongsToCurrentScope;
         }
-#if !MONO
+#endif //!FEATURE_CORECLR
 
+#if !MONO
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
@@ -772,7 +773,9 @@ namespace System.Threading {
 #endif
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
+#if !MONO        
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+#endif
         [SuppressUnmanagedCodeSecurity]
         [HostProtection(Synchronization = true, ExternalThreading = true),
          ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
