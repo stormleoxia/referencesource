@@ -773,7 +773,9 @@ namespace System.Threading {
 #endif
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
-#if !MONO        
+#if MONO
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+#else
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
 #endif
         [SuppressUnmanagedCodeSecurity]
