@@ -111,6 +111,64 @@ namespace System.Data.SqlClient
         internal SessionData             _currentSessionData; // internal for use from TdsParser only, otehr should use CurrentSessionData property that will fix database and language
         private SessionData              _recoverySessionData;
 
+        // Federated Authentication
+        // Response obtained from the server for FEDAUTHREQUIRED prelogin option.
+        internal bool _fedAuthRequired;
+
+        internal bool _federatedAuthenticationRequested;
+        internal bool _federatedAuthenticationAcknowledged;
+        internal bool _federatedAuthenticationInfoRequested; // Keep this distinct from _federatedAuthenticationRequested, since some fedauth library types may not need more info
+        internal bool _federatedAuthenticationInfoReceived;
+
+        // TCE flags
+        internal byte _tceVersionSupported;
+
+        internal byte[] _accessTokenInBytes;
+
+        // The pool that this connection is associated with, if at all it is.
+        private DbConnectionPool _dbConnectionPool;
+
+        // This is used to preserve the authentication context object if we decide to cache it for subsequent connections in the same pool.
+        // This will finally end up in _dbConnectionPool.AuthenticationContexts, but only after 1 successful login to SQL Server using this context.
+        // This variable is to persist the context after we have generated it, but before we have successfully completed the login with this new context.
+        // If this connection attempt ended up re-using the existing context and not create a new one, this will be null (since the context is not new).
+        private DbConnectionPoolAuthenticationContext _newDbConnectionPoolAuthenticationContext;
+
+        // The key of the authentication context, built from information found in the FedAuthInfoToken.
+        private DbConnectionPoolAuthenticationContextKey _dbConnectionPoolAuthenticationContextKey;
+
+#if DEBUG
+        // This is a test hook to enable testing of the retry paths for ADAL get access token.
+        // Sample code to enable:
+        //
+        //    Type type = typeof(SqlConnection).Assembly.GetType("System.Data.SqlClient.SqlInternalConnectionTds");
+        //    System.Reflection.FieldInfo field = type.GetField("_forceAdalRetry", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        //    if (field != null) {
+        //        field.SetValue(null, true);
+        //    }
+        //
+        internal static bool _forceAdalRetry = false;
+
+        // This is a test hook to simulate a token expiring within the next 45 minutes.
+        private static bool _forceExpiryLocked = false;
+
+        // This is a test hook to simulate a token expiring within the next 10 minutes.
+        private static bool _forceExpiryUnLocked = false;
+#endif //DEBUG
+
+        // The timespan defining the amount of time the authentication context needs to be valid for at-least, to re-use the cached context,
+        // without making an attempt to refresh it. IF the context is expiring within the next 45 mins, then try to take a lock and refresh
+        // the context, if the lock is acquired.
+        private static readonly TimeSpan _dbAuthenticationContextLockedRefreshTimeSpan = new TimeSpan(hours: 0, minutes: 45, seconds: 00);
+
+        // The timespan defining the minimum amount of time the authentication context needs to be valid for re-using the cached context.
+        // If the context is expiring within the next 10 mins, then create a new context, irrespective of if another thread is trying to do the same.
+        private static readonly TimeSpan _dbAuthenticationContextUnLockedRefreshTimeSpan = new TimeSpan(hours: 0, minutes: 10, seconds: 00);
+
+        private readonly TimeoutTimer _timeout;
+
+        private static HashSet<int> transientErrors = new HashSet<int>();
+
         internal SessionData CurrentSessionData {
             get {
                 if (_currentSessionData != null) {
@@ -242,6 +300,11 @@ namespace System.Data.SqlClient
         private Guid _originalClientConnectionId = Guid.Empty;
         private string _routingDestination = null;
 
+        static SqlInternalConnectionTds()
+        {
+            populateTransientErrors();
+        }
+
         // although the new password is generally not used it must be passed to the c'tor
         // the new Login7 packet will always write out the new password (or a length of zero and no bytes if not present)
         //
@@ -254,7 +317,11 @@ namespace System.Data.SqlClient
                 SecureString                newSecurePassword,
                 bool                        redirectedUserInstance,
                 SqlConnectionString         userConnectionOptions = null, // NOTE: userConnectionOptions may be different to connectionOptions if the connection string has been expanded (see SqlConnectionString.Expand)
-                SessionData                 reconnectSessionData = null) : base(connectionOptions) {
+                SessionData                 reconnectSessionData = null,
+                DbConnectionPool            pool = null,
+                string                      accessToken = null,
+                bool applyTransientFaultHandling = false
+                ) : base(connectionOptions) {
 
 #if DEBUG
             if (reconnectSessionData != null) {
@@ -322,8 +389,34 @@ namespace System.Data.SqlClient
 #else
                 {
 #endif //DEBUG
-                    var timeout = TimeoutTimer.StartSecondsTimeout(connectionOptions.ConnectTimeout);
-                    OpenLoginEnlist(timeout, connectionOptions, credential, newPassword, newSecurePassword, redirectedUserInstance);
+                    _timeout = TimeoutTimer.StartSecondsTimeout(connectionOptions.ConnectTimeout);
+
+                    // If transient fault handling is enabled then we can retry the login upto the ConnectRetryCount.
+                    int connectionEstablishCount = applyTransientFaultHandling ? connectionOptions.ConnectRetryCount + 1 : 1;
+                    int transientRetryIntervalInMilliSeconds = connectionOptions.ConnectRetryInterval * 1000; // Max value of transientRetryInterval is 60*1000 ms. The max value allowed for ConnectRetryInterval is 60
+                    for (int i = 0; i < connectionEstablishCount; i++)
+                    {
+                        try
+                        {
+                            OpenLoginEnlist(_timeout, connectionOptions, credential, newPassword, newSecurePassword, redirectedUserInstance);
+                            break;
+                        }
+                        catch (SqlException sqlex)
+                        {
+                            if (i + 1 == connectionEstablishCount 
+                                || !applyTransientFaultHandling
+                                || _timeout.IsExpired
+                                || _timeout.MillisecondsRemaining < transientRetryIntervalInMilliSeconds
+                                || !IsTransientError(sqlex))
+                            {
+                                throw sqlex;
+                            }
+                            else
+                            {
+                                Thread.Sleep(transientRetryIntervalInMilliSeconds);
+                            }
+                        }
+                    }
                 }
 #if DEBUG
                 finally {
@@ -351,7 +444,61 @@ namespace System.Data.SqlClient
                 Bid.Trace("<sc.SqlInternalConnectionTds.ctor|ADV> %d#, constructed new TDS internal connection\n", ObjectID);
             }
         }
-       
+
+        // The erros in the transient error set are contained in
+        // https://azure.microsoft.com/en-us/documentation/articles/sql-database-develop-error-messages/#transient-faults-connection-loss-and-other-temporary-errors
+        private static void populateTransientErrors()
+        {
+            // SQL Error Code: 4060
+            // Cannot open database "%.*ls" requested by the login. The login failed.
+            transientErrors.Add(4060);
+            // SQL Error Code: 10928
+            // Resource ID: %d. The %s limit for the database is %d and has been reached.
+            transientErrors.Add(10928);
+            // SQL Error Code: 10929
+            // Resource ID: %d. The %s minimum guarantee is %d, maximum limit is %d and the current usage for the database is %d. 
+            // However, the server is currently too busy to support requests greater than %d for this database.
+            transientErrors.Add(10929);
+            // SQL Error Code: 40197
+            // You will receive this error, when the service is down due to software or hardware upgrades, hardware failures, 
+            // or any other failover problems. The error code (%d) embedded within the message of error 40197 provides 
+            // additional information about the kind of failure or failover that occurred. Some examples of the error codes are 
+            // embedded within the message of error 40197 are 40020, 40143, 40166, and 40540.
+            transientErrors.Add(40197);
+            transientErrors.Add(40020);
+            transientErrors.Add(40143);
+            transientErrors.Add(40166);
+            // The service has encountered an error processing your request. Please try again.
+            transientErrors.Add(40540);
+            // The service is currently busy. Retry the request after 10 seconds. Incident ID: %ls. Code: %d.
+            transientErrors.Add(40501);
+            // Database '%.*ls' on server '%.*ls' is not currently available. Please retry the connection later. 
+            // If the problem persists, contact customer support, and provide them the session tracing ID of '%.*ls'.
+            transientErrors.Add(40613);
+            // Do federation errors deserve to be here ? 
+            // Note: Federation errors 10053 and 10054 might also deserve inclusion in your retry logic.
+            //transientErrors.Add(10053);
+            //transientErrors.Add(10054);
+        }
+
+
+        // Returns true if the Sql error is a transient.
+        private bool IsTransientError(SqlException exc)
+        {
+            if (exc == null)
+            {
+                return false;
+            }
+            foreach (SqlError error in exc.Errors)
+            {
+                if (transientErrors.Contains(error.Number))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
         internal Guid ClientConnectionId {
             get {
                 return _clientConnectionId;
@@ -1128,7 +1275,34 @@ namespace System.Data.SqlClient
                 _sessionRecoveryRequested = true;
             }
 
-            _parser.TdsLogin(login, requestedFeatures, _recoverySessionData);
+            // If the workflow being used is Active Directory Password or Active Directory Integrated and server's prelogin response
+            // for FEDAUTHREQUIRED option indicates Federated Authentication is required, we have to insert FedAuth Feature Extension
+            // in Login7, indicating the intent to use Active Directory Authentication Library for SQL Server.
+            if (ConnectionOptions.Authentication == SqlAuthenticationMethod.ActiveDirectoryPassword
+                || (ConnectionOptions.Authentication == SqlAuthenticationMethod.ActiveDirectoryIntegrated && _fedAuthRequired)) {
+                requestedFeatures |= TdsEnums.FeatureExtension.FedAuth;
+                _federatedAuthenticationInfoRequested = true;
+                _fedAuthFeatureExtensionData = 
+                    new FederatedAuthenticationFeatureExtensionData { 
+                        libraryType = TdsEnums.FedAuthLibrary.ADAL,
+                        authentication = ConnectionOptions.Authentication,
+                        fedAuthRequiredPreLoginResponse = _fedAuthRequired
+                    };
+            }
+            if (_accessTokenInBytes != null) {
+                requestedFeatures |= TdsEnums.FeatureExtension.FedAuth;
+                _fedAuthFeatureExtensionData = new FederatedAuthenticationFeatureExtensionData {
+                        libraryType = TdsEnums.FedAuthLibrary.SecurityToken,
+                        fedAuthRequiredPreLoginResponse = _fedAuthRequired,
+                        accessToken = _accessTokenInBytes
+                    };
+                // No need any further info from the server for token based authentication. So set _federatedAuthenticationRequested to true
+                _federatedAuthenticationRequested = true;
+            }
+
+            // The TCE and GLOBALTRANSACTIONS feature are implicitly requested
+            requestedFeatures |= TdsEnums.FeatureExtension.Tce | TdsEnums.FeatureExtension.GlobalTransactions;
+            _parser.TdsLogin(login, requestedFeatures, _recoverySessionData, _fedAuthFeatureExtensionData);
         }
 
         private void LoginFailure() {
@@ -1236,8 +1410,9 @@ namespace System.Data.SqlClient
         ResolveExtendedServerName(serverInfo, !redirectedUserInstance, connectionOptions);
 
         long timeoutUnitInterval = 0;
+        Boolean isParallel = connectionOptions.MultiSubnetFailover || connectionOptions.TransparentNetworkIPResolution;
 
-        if (connectionOptions.MultiSubnetFailover) {
+        if(isParallel) {
             // Determine unit interval
             if (timeout.IsInfinite) {
                 timeoutUnitInterval = checked((long)(ADP.FailoverTimeoutStep * (1000L * ADP.DefaultConnectionTimeout)));
@@ -1257,9 +1432,11 @@ namespace System.Data.SqlClient
         //  back into the parser for the error cases.
         int attemptNumber = 0;
         TimeoutTimer intervalTimer = null;
+        TimeoutTimer firstTransparentAttemptTimeout = TimeoutTimer.StartMillisecondsTimeout(ADP.FirstTransparentAttemptTimeout);
+        TimeoutTimer attemptOneLoginTimeout = timeout;
         while(true) {
 
-            if (connectionOptions.MultiSubnetFailover) {
+            if(isParallel) {
                 attemptNumber++;
                 // Set timeout for this attempt, but don't exceed original timer                
                 long nextTimeoutInterval = checked(timeoutUnitInterval * attemptNumber);
@@ -1282,14 +1459,26 @@ namespace System.Data.SqlClient
                 // 
 
 
+                Boolean isFirstTransparentAttempt =  connectionOptions.TransparentNetworkIPResolution && attemptNumber == 1;
+
+                if(isFirstTransparentAttempt) {
+                    attemptOneLoginTimeout = firstTransparentAttemptTimeout;
+                }
+                else {
+                    if(isParallel) {
+                        attemptOneLoginTimeout = intervalTimer;
+                    }
+                }
+                
                 AttemptOneLogin(    serverInfo, 
                                     newPassword,
                                     newSecurePassword,
-                                    !connectionOptions.MultiSubnetFailover,    // ignore timeout for SniOpen call unless MSF 
-                                    connectionOptions.MultiSubnetFailover ? intervalTimer : timeout);
+                                    !isParallel,    // ignore timeout for SniOpen call unless MSF , and TNIR
+                                    attemptOneLoginTimeout,
+                                    isFirstTransparentAttempt:isFirstTransparentAttempt);
                 
                 if (connectionOptions.MultiSubnetFailover && null != ServerProvidedFailOverPartner) {
-                    // connection succeeded: trigger exception if server sends failover partner and MultiSubnetFailover is used
+                    // connection succeeded: trigger exception if server sends failover partner and MultiSubnetFailover is used.
                     throw SQL.MultiSubnetFailoverWithFailoverPartner(serverProvidedFailoverPartner: true, internalConnection: this);
                 }
 
@@ -1607,7 +1796,7 @@ namespace System.Data.SqlClient
     }
 
     // Common code path for making one attempt to establish a connection and log in to server.
-    private void AttemptOneLogin(ServerInfo serverInfo, string newPassword, SecureString newSecurePassword, bool ignoreSniOpenTimeout, TimeoutTimer timeout, bool withFailover = false) {
+    private void AttemptOneLogin(ServerInfo serverInfo, string newPassword, SecureString newSecurePassword, bool ignoreSniOpenTimeout, TimeoutTimer timeout, bool withFailover = false, bool isFirstTransparentAttempt = true) {
         if (Bid.AdvancedOn) {
             Bid.Trace("<sc.SqlInternalConnectionTds.AttemptOneLogin|ADV> %d#, timout=%I64d{msec}, server=", ObjectID, timeout.MillisecondsRemaining);
             Bid.PutStr(serverInfo.ExtendedServerName);
@@ -1625,7 +1814,9 @@ namespace System.Data.SqlClient
                         ConnectionOptions.Encrypt,
                         ConnectionOptions.TrustServerCertificate,
                         ConnectionOptions.IntegratedSecurity,
-                        withFailover);
+                        withFailover,
+                        isFirstTransparentAttempt,
+                        ConnectionOptions.Authentication);
 
         timeoutErrorInternal.EndPhase(SqlConnectionTimeoutErrorPhase.ConsumePreLoginHandshake);
         timeoutErrorInternal.SetAndBeginPhase(SqlConnectionTimeoutErrorPhase.LoginBegin);
@@ -1888,6 +2079,96 @@ namespace System.Data.SqlClient
                         }
                         break;
                     }
+                case TdsEnums.FEATUREEXT_FEDAUTH: {
+                        if (Bid.AdvancedOn) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck> %d#, Received feature extension acknowledgement for federated authentication\n", ObjectID);
+                        }
+                        if (!_federatedAuthenticationRequested) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Did not request federated authentication\n", ObjectID);
+                            throw SQL.ParsingErrorFeatureId(ParsingErrorState.UnrequestedFeatureAckReceived, featureId);
+                        }
+
+                        Debug.Assert(_fedAuthFeatureExtensionData != null, "_fedAuthFeatureExtensionData must not be null when _federatedAuthenticatonRequested == true");
+
+                        switch (_fedAuthFeatureExtensionData.Value.libraryType) {
+                            case TdsEnums.FedAuthLibrary.ADAL:
+                            case TdsEnums.FedAuthLibrary.SecurityToken:
+                                // The server shouldn't have sent any additional data with the ack (like a nonce)
+                                if (data.Length != 0) {
+                                    Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Federated authentication feature extension ack for ADAL and Security Token includes extra data\n", ObjectID);
+                                    throw SQL.ParsingError(ParsingErrorState.FedAuthFeatureAckContainsExtraData);
+                                }
+                                break;
+
+                            default:
+                                Debug.Assert(false, "Unknown _fedAuthLibrary type");
+                                Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Attempting to use unknown federated authentication library\n", ObjectID);
+                                throw SQL.ParsingErrorLibraryType(ParsingErrorState.FedAuthFeatureAckUnknownLibraryType, (int)_fedAuthFeatureExtensionData.Value.libraryType);
+                        }
+                        _federatedAuthenticationAcknowledged = true;
+
+                        // If a new authentication context was used as part of this login attempt, try to update the new context in the cache, i.e.dbConnectionPool.AuthenticationContexts.
+                        // ChooseAuthenticationContextToUpdate will take care that only the context which has more validity will remain in the cache, based on the Update logic.
+                        if (_newDbConnectionPoolAuthenticationContext != null)
+                        {
+                            Debug.Assert(_dbConnectionPool != null, "_dbConnectionPool should not be null when _newDbConnectionPoolAuthenticationContext != null.");
+
+                            DbConnectionPoolAuthenticationContext newAuthenticationContextInCacheAfterAddOrUpdate = _dbConnectionPool.AuthenticationContexts.AddOrUpdate(_dbConnectionPoolAuthenticationContextKey, _newDbConnectionPoolAuthenticationContext,
+                                                                                 (key, oldValue) => DbConnectionPoolAuthenticationContext.ChooseAuthenticationContextToUpdate(oldValue, _newDbConnectionPoolAuthenticationContext));
+
+                            Debug.Assert(newAuthenticationContextInCacheAfterAddOrUpdate != null, "newAuthenticationContextInCacheAfterAddOrUpdate should not be null.");
+#if DEBUG
+                            // For debug purposes, assert and trace if we ended up updating the cache with the new one or some other thread's context won the expiration ----.
+                            if (newAuthenticationContextInCacheAfterAddOrUpdate == _newDbConnectionPoolAuthenticationContext) {
+                                    Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Updated the new dbAuthenticationContext in the _dbConnectionPool.AuthenticationContexts. \n", ObjectID);
+                            }
+                            else {
+                                    Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, AddOrUpdate attempted on _dbConnectionPool.AuthenticationContexts, but it did not update the new value. \n", ObjectID);
+                            }
+#endif
+                        }
+
+                        break;
+                    }
+                case TdsEnums.FEATUREEXT_TCE: {
+                        if (Bid.AdvancedOn) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck> %d#, Received feature extension acknowledgement for TCE\n", ObjectID);
+                        }
+
+                        if (data.Length < 1) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Unknown version number for TCE\n", ObjectID);
+                            throw SQL.ParsingError(ParsingErrorState.TceUnknownVersion);
+                        }
+
+                        byte supportedTceVersion = data[0];
+                        if (0 == supportedTceVersion || supportedTceVersion > TdsEnums.MAX_SUPPORTED_TCE_VERSION) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Invalid version number for TCE\n", ObjectID);
+                            throw SQL.ParsingErrorValue(ParsingErrorState.TceInvalidVersion, supportedTceVersion);
+                        }
+
+                        _tceVersionSupported = supportedTceVersion;
+                        Debug.Assert (_tceVersionSupported == TdsEnums.MAX_SUPPORTED_TCE_VERSION, "Client support TCE version 1");
+                        _parser.IsColumnEncryptionSupported = true;
+                        break;
+                    }
+
+                case TdsEnums.FEATUREEXT_GLOBALTRANSACTIONS: {
+                        if (Bid.AdvancedOn) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck> %d#, Received feature extension acknowledgement for GlobalTransactions\n", ObjectID);
+                        }
+
+                        if (data.Length < 1) {
+                            Bid.Trace("<sc.SqlInternalConnectionTds.OnFeatureExtAck|ERR> %d#, Unknown version number for GlobalTransactions\n", ObjectID);
+                            throw SQL.ParsingError(ParsingErrorState.CorruptedTdsStream);
+                        }
+
+                        IsGlobalTransaction = true;    
+                        if (1 == data[0]) {
+                            IsGlobalTransactionsEnabledForServer = true;
+                        }
+                        break;
+                    }
+
                 default: {
                         // Unknown feature ack 
                         throw SQL.ParsingError();

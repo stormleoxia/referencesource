@@ -1017,7 +1017,8 @@ namespace System {
         #region Public Members
         public virtual bool IsDefaultAttribute() { return false; }
         #endregion
-#if !MOBILE
+
+#if !FEATURE_CORECLR && !MOBILE
         void _Attribute.GetTypeInfoCount(out uint pcTInfo)
         {
             throw new NotImplementedException();

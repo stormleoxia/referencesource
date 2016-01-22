@@ -202,7 +202,7 @@ internal static class StringUtil {
 
         return 0 == string.Compare(s1, 0, s2, 0, s2.Length, StringComparison.OrdinalIgnoreCase);
     }
-
+#if !MONO
     internal unsafe static void UnsafeStringCopy(string src, int srcIndex, char[] dest, int destIndex, int len) {
         // We do not verify the parameters in this function, as the callers are assumed
         // to have done so. This is important for users such as HttpWriter that already
@@ -225,7 +225,7 @@ internal static class StringUtil {
             memcpyimpl(pbSrc, pbDest, cb);
         }
     }
-
+#endif
     internal static bool StringArrayEquals(string[] a, string [] b) {
         if ((a == null) != (b == null)) {
             return false;
@@ -274,7 +274,46 @@ internal static class StringUtil {
             }
         }
     }
+#if !MONO
+    internal static int GetNonRandomizedHashCode(string s, bool ignoreCase = false) {
+        // Preserve the default behavior when string hash randomization is off
+        if (!AppSettings.UseRandomizedStringHashAlgorithm) {
+            return ignoreCase ? StringComparer.InvariantCultureIgnoreCase.GetHashCode(s) : s.GetHashCode();
+        }
 
+        if (ignoreCase) {
+            s = s.ToLower(CultureInfo.InvariantCulture);
+        }
+
+        // Use our stable hash algorithm implementation
+        return GetStringHashCode(s);
+    }
+
+    // Need StringComparer implementation. It's very expensive to port the actual BCL code here
+    // Instead use the default AppDomain, because it doesn't have string hash randomization enabled.
+    // Marshal the call to reuse the default StringComparer behavior. 
+    // PERF isn't optimal, so apply consideration!
+    internal static int GetNonRandomizedStringComparerHashCode(string s) {
+        // Preserve the default behavior when string hash randomization is off
+        if (!AppSettings.UseRandomizedStringHashAlgorithm) {
+            return StringComparer.InvariantCultureIgnoreCase.GetHashCode(s);
+        }
+
+        ApplicationManager appManager = HostingEnvironment.GetApplicationManager();
+        if (appManager != null) {
+            // Cross AppDomain call may cause marshaling of IPrincipal to fail. So strip out the exectuion context
+            int hashCode = 0;
+            ExecutionContextUtil.RunInNullExecutionContext(delegate {
+                 hashCode = appManager.GetNonRandomizedStringComparerHashCode(s, ignoreCase:true);
+            });
+
+            return hashCode;
+        }
+
+        // Fall back to non-compat result
+        return GetStringHashCode(s.ToLower(CultureInfo.InvariantCulture));
+    }
+#endif
     internal static int GetNullTerminatedByteArray(Encoding enc, string s, out byte[] bytes)
     {
         bytes = null;
@@ -288,7 +327,9 @@ internal static class StringUtil {
     }
 
     internal unsafe static void memcpyimpl(byte* src, byte* dest, int len) {
+#if !MONO        
         Debug.Assert(len >= 0, "Negative length in memcpyimpl!");
+#endif
 
 #if FEATURE_PAL
         // Portable naive implementation

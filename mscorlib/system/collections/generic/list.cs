@@ -187,9 +187,6 @@ namespace System.Collections.Generic {
         // Sets or Gets the element at the given index.
         // 
         public T this[int index] {
-#if !FEATURE_CORECLR
-            [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-#endif
 #if MONO
             [System.Runtime.CompilerServices.MethodImpl (System.Runtime.CompilerServices.MethodImplOptions.AggressiveInlining)]
 #endif

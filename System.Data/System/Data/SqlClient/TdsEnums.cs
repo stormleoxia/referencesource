@@ -196,11 +196,17 @@ namespace System.Data.SqlClient {
         // Feature Extension
         public const byte FEATUREEXT_TERMINATOR = 0xFF;
         public const byte FEATUREEXT_SRECOVERY  = 0x01;
+        public const byte FEATUREEXT_FEDAUTH    = 0x02;
+        public const byte FEATUREEXT_TCE        = 0x04;
+        public const byte FEATUREEXT_GLOBALTRANSACTIONS = 0x05;
 
         [Flags]
         public enum FeatureExtension:uint {
             None=0,
             SessionRecovery=1,
+            FedAuth=2,
+            Tce=4,
+            GlobalTransactions = 8,
         }
 
 
@@ -883,6 +889,98 @@ namespace System.Data.SqlClient {
         Snix_Read,
         Snix_Close,
         Snix_SendRows,
+    }
+
+    /// <summary>
+    /// Column Encryption Setting to be used for the SqlConnection.
+    /// </summary>
+    public enum SqlConnectionColumnEncryptionSetting {
+        /// <summary>
+        /// Disables column encryption by default on all commands on this connection.
+        /// </summary>
+        Disabled = 0,
+
+        /// <summary>
+        /// Enables column encryption by default on all commands on this connection.
+        /// </summary>
+        Enabled,
+    }
+
+    /// <summary>
+    /// Column Encryption Setting to be used for the SqlCommand.
+    /// </summary>
+    public enum SqlCommandColumnEncryptionSetting {
+        /// <summary>
+        /// if “Column Encryption Setting=Enabled” in the connection string, use Enabled. Otherwise, maps to Disabled.
+        /// </summary>
+        UseConnectionSetting = 0,
+
+        /// <summary>
+        /// Enables TCE for the command. Overrides the connection level setting for this command.
+        /// </summary>
+        Enabled,
+
+        /// <summary>
+        /// Parameters will not be encrypted, only the ResultSet will be decrypted. This is an optimization for queries that do not pass any encrypted input parameters.
+        /// Overrides the connection level setting for this command.
+        /// </summary>
+        ResultSetOnly,
+
+        /// <summary>
+        /// Disables TCE for the command.Overrides the connection level setting for this command.
+        /// </summary>
+        Disabled,
+    }
+
+    public enum SqlAuthenticationMethod {
+        NotSpecified = 0,
+        SqlPassword,
+        ActiveDirectoryPassword,
+        ActiveDirectoryIntegrated,
+    }
+    // This enum indicates the state of TransparentNetworkIPResolution
+    // The first attempt when TNIR is on should be sequential. If the first attempt failes next attempts should be parallel.
+    internal enum TransparentNetworkResolutionState {
+        DisabledMode = 0,
+        SequentialMode,
+        ParallelMode
+    }; 
+
+    internal class ActiveDirectoryAuthentication
+    {
+        internal const string AdoClientId = "4d079b4c-cab7-4b7c-a115-8fd51b6f8239";
+        internal const string AdalGetAccessTokenFunctionName = "ADALGetAccessToken";
+        internal const int GetAccessTokenSuccess = 0;
+        internal const int GetAccessTokenInvalidGrant = 1;
+        internal const int GetAccessTokenTansisentError = 2;
+        internal const int GetAccessTokenOtherError = 3;
+    }
+
+    // Fields in the first resultset of "sp_describe_parameter_encryption".
+    // We expect the server to return the fields in the resultset in the same order as mentioned below.
+    // If the server changes the below order, then transparent parameter encryption will break.
+    internal enum DescribeParameterEncryptionResultSet1 {
+        KeyOrdinal = 0,
+        DbId,
+        KeyId,
+        KeyVersion,
+        KeyMdVersion,
+        EncryptedKey,
+        ProviderName,
+        KeyPath,
+        KeyEncryptionAlgorithm,
+    }
+
+    // Fields in the second resultset of "sp_describe_parameter_encryption"
+    // We expect the server to return the fields in the resultset in the same order as mentioned below.
+    // If the server changes the below order, then transparent parameter encryption will break.
+    internal enum DescribeParameterEncryptionResultSet2 {
+        ParameterOrdinal = 0,
+        ParameterName,
+        ColumnEncryptionAlgorithm,
+        ColumnEncrytionType,
+        ColumnEncryptionKeyOrdinal,
+        NormalizationRuleVersion,
     }
 }
 

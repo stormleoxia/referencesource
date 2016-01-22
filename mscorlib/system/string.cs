@@ -2944,9 +2944,7 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern String ReplaceInternal(String oldValue, String newValue);
 #endif
-#if !FEATURE_CORECLR
-        [TargetedPatchingOptOut("Performance critical to inline across NGen image boundaries")]
-#endif        
+
         public String Replace(String oldValue, String newValue)
         {
             if (oldValue == null)
@@ -3499,37 +3497,6 @@ namespace System {
         /// <internalonly/>
         Object IConvertible.ToType(Type type, IFormatProvider provider) {
             return Convert.DefaultToType((IConvertible)this, type, provider);
-        }
-
-        //
-        // Silverlight v2 - v3 defaulted to using Ordinal for the following APIs
-        //    [System.String]
-        //        public Boolean EndsWith(String value)
-        //        public Boolean EndsWith(String value, Boolean ignoreCase, CultureInfo culture)
-        //        public int IndexOf(String value)
-        //        public int IndexOf(String value, int startIndex)
-        //        public int IndexOf(String value, int startIndex, int count)
-        //        public int LastIndexOf(String value)
-        //        public int LastIndexOf(String value, int startIndex)
-        //        public int LastIndexOf(String value, int startIndex, int count)
-        //        public Boolean StartsWith(String value)
-        //        public Boolean StartsWith(String value, Boolean ignoreCase, CultureInfo culture)
-        //        public String ToLower()
-        //        public String ToUpper()
-        //    [System.Char]
-        //        public static char ToUpper(char c)
-        //        public static char ToLower(char c)
-        //
-        // Starting with Silverlight 4 these APIs default to using CurrentCulture
-        // for alignment with Desktop CLR.  Applications can enable the legacy v2-v3
-        // System.String behavior by using the 'APP_EARLIER_THAN_SL4.0' configuration option.
-        //        
-        internal static bool LegacyMode 
-        {
-            get
-            {
-                return CompatibilitySwitches.IsAppEarlierThanSilverlight4;
-            }
         }
 
 #if !MONO

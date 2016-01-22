@@ -388,7 +388,6 @@ namespace System.Reflection {
     }
 #endif
 
-#if FEATURE_CORECLR || !FEATURE_PAL || MONO
     [AttributeUsage (AttributeTargets.Assembly, Inherited=false)]  
 [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class AssemblyKeyNameAttribute : Attribute 

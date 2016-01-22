@@ -17,6 +17,7 @@ namespace System {
     [StructLayout(LayoutKind.Sequential)]
     [Serializable]
 [System.Runtime.InteropServices.ComVisible(true)]
+    [System.Runtime.Versioning.NonVersionable] // This only applies to field layout
     public partial struct Guid : IFormattable, IComparable
 #if GENERICS_WORK
         , IComparable<Guid>, IEquatable<Guid>

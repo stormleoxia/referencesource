@@ -2158,17 +2158,15 @@ public class Page: TemplateControl, IHttpHandler {
         }
         // Load the scroll positions from the request if they exist
         if (_requestValueCollection != null) {
+            double doubleValue;
+            
             string xpos = _requestValueCollection[_scrollPositionXID];
             if (xpos != null) {
-                if (!Int32.TryParse(xpos, out _scrollPositionX)) {
-                    _scrollPositionX = 0;
-                }
+                _scrollPositionX = HttpUtility.TryParseCoordinates(xpos, out doubleValue) ? (int)doubleValue : 0 ;
             }
             string ypos = _requestValueCollection[_scrollPositionYID];
             if (ypos != null) {
-                if (!Int32.TryParse(ypos, out _scrollPositionY)) {
-                    _scrollPositionY = 0;
-                }
+                _scrollPositionY = HttpUtility.TryParseCoordinates(ypos, out doubleValue) ? (int)doubleValue : 0 ;
             }
         }
     }
@@ -3118,6 +3116,130 @@ window.onload = WebForm_RestoreScrollPosition;
             _controlsRequiringPostBack = leftOverControlsRequiringPostBack;
         }
 
+    }
+
+    // Operations like FindControl and LoadPostData call EnsureDataBound, which may fire up 
+    // async model binding methods. Therefore we make ProcessPostData method to be async so that we can await 
+    // async data bindings.
+    // The differences between ProcessPostData and ProcessPostDataAsync are:
+    // 1. ProcessPostDataAsync awaits GetWaitForPreviousStepCompletionAwaitable after FindControl();
+    // 2. ProcessPostDataAsync calls LoadPostDataAsync() instead of LoadPostData().
+    private async Task ProcessPostDataAsync(NameValueCollection postData, bool fBeforeLoad) {
+        if (_changedPostDataConsumers == null)
+            _changedPostDataConsumers = new ArrayList();
+
+        // identify controls that have postback data
+        if (postData != null) {
+            foreach (string postKey in postData) {
+                if (postKey != null) {
+                    // Ignore system post fields
+                    if (IsSystemPostField(postKey))
+                        continue;
+
+                    Control ctrl = null;
+                    using (Context.SyncContext.AllowVoidAsyncOperationsBlock()) {
+                        ctrl = FindControl(postKey);
+                        await GetWaitForPreviousStepCompletionAwaitable();
+                    }
+
+                    if (ctrl == null) {
+                        if (fBeforeLoad) {
+                            // It was not found, so keep track of it for the post load attempt
+                            if (_leftoverPostData == null)
+                                _leftoverPostData = new NameValueCollection();
+                            _leftoverPostData.Add(postKey, null);
+                        }
+                        continue;
+                    }
+
+                    IPostBackDataHandler consumer = ctrl.PostBackDataHandler;
+
+                    // Ignore controls that are not IPostBackDataHandler (see ASURT 13581)
+                    if (consumer == null) {
+
+                        // If it's a IPostBackEventHandler (which doesn't implement IPostBackDataHandler),
+                        // register it (ASURT 39040)
+                        if (ctrl.PostBackEventHandler != null)
+                            RegisterRequiresRaiseEvent(ctrl.PostBackEventHandler);
+
+                        continue;
+                    }
+
+                    if (consumer != null) {
+                        NameValueCollection postCollection = ctrl.CalculateEffectiveValidateRequest() ? _requestValueCollection : _unvalidatedRequestValueCollection;
+                        bool changed = await LoadPostDataAsync(consumer, postKey, postCollection);
+
+                        if (changed)
+                            _changedPostDataConsumers.Add(ctrl);
+                    }
+
+                    // ensure controls are only notified of postback once
+                    if (_controlsRequiringPostBack != null)
+                        _controlsRequiringPostBack.Remove(postKey);
+                }
+            }
+        }
+
+        // Keep track of the leftover for the post-load attempt
+        ArrayList leftOverControlsRequiringPostBack = null;
+
+        // process controls that explicitly registered to be notified of postback
+        if (_controlsRequiringPostBack != null) {
+            foreach (string controlID in _controlsRequiringPostBack) {
+                Control c = null;
+                using (Context.SyncContext.AllowVoidAsyncOperationsBlock()) {
+                    c = FindControl(controlID);
+                    await GetWaitForPreviousStepCompletionAwaitable();
+                }
+
+                if (c != null) {
+                    IPostBackDataHandler consumer = c.AdapterInternal as IPostBackDataHandler;
+                    if (consumer == null) {
+                        consumer = c as IPostBackDataHandler;
+                    }
+
+                    // Give a helpful error if the control is not a IPostBackDataHandler (ASURT 128532)
+                    if (consumer == null) {
+                        throw new HttpException(SR.GetString(SR.Postback_ctrl_not_found, controlID));
+                    }
+
+                    NameValueCollection postCollection = c.CalculateEffectiveValidateRequest() ? _requestValueCollection : _unvalidatedRequestValueCollection;
+                    bool changed = await LoadPostDataAsync(consumer, controlID, postCollection);
+                    if (changed)
+                        _changedPostDataConsumers.Add(c);
+                }
+                else {
+                    if (fBeforeLoad) {
+                        if (leftOverControlsRequiringPostBack == null)
+                            leftOverControlsRequiringPostBack = new ArrayList();
+                        leftOverControlsRequiringPostBack.Add(controlID);
+                    }
+                }
+            }
+
+            _controlsRequiringPostBack = leftOverControlsRequiringPostBack;
+        }
+
+    }
+
+    private async Task<bool> LoadPostDataAsync(IPostBackDataHandler consumer, string postKey, NameValueCollection postCollection) {
+        bool changed;
+
+        // ListControl family controls call EnsureDataBound in consumer.LoadPostData, which could be an async call in 4.6. 
+        // LoadPostData, however, is a [....] method, which means we cannot await EnsureDataBound in the method.
+        // To workaround this, for ListControl family controls, we call EnsureDataBound before we call into LoadPostData.
+        if (AppSettings.EnableAsyncModelBinding && consumer is ListControl) {
+            var listControl = consumer as ListControl;
+            listControl.SkipEnsureDataBoundInLoadPostData = true;
+            using (Context.SyncContext.AllowVoidAsyncOperationsBlock()) {                
+                listControl.InternalEnsureDataBound();                
+                await GetWaitForPreviousStepCompletionAwaitable();
+            }
+        }
+
+        changed = consumer.LoadPostData(postKey, postCollection);
+
+        return changed;
     }
 
     /*

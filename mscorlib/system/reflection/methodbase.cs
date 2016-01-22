@@ -65,13 +65,6 @@ namespace System.Reflection
             if (handle.IsNullHandle())
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
 
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage))
-            {
-                FrameworkEventSource.Log.BeginGetMethodFromHandle();
-            }
-#endif
-
 #if MONO
             MethodBase m = GetMethodFromHandleInternalType (handle.Value, IntPtr.Zero);
             if (m == null)
@@ -81,14 +74,6 @@ namespace System.Reflection
 #endif
 
             Type declaringType = m.DeclaringType;
-
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage)  && declaringType != null)
-            {
-                FrameworkEventSource.Log.EndGetMethodFromHandle(declaringType.GetFullNameForEtw(), m.GetFullNameForEtw());
-            }
-#endif
-
             if (declaringType != null && declaringType.IsGenericType)
                 throw new ArgumentException(String.Format(
                     CultureInfo.CurrentCulture, Environment.GetResourceString("Argument_MethodDeclaringTypeGeneric"), 
@@ -103,29 +88,14 @@ namespace System.Reflection
             if (handle.IsNullHandle())
                 throw new ArgumentException(Environment.GetResourceString("Argument_InvalidHandle"));
 
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage))
-            {
-                FrameworkEventSource.Log.BeginGetMethodFromHandle();
-            }
-#endif
-            
 #if MONO
             MethodBase m = GetMethodFromHandleInternalType (handle.Value, declaringType.Value);
             if (m == null)
                 throw new ArgumentException ("The handle is invalid.");
-#else
-            MethodBase m = RuntimeType.GetMethodBase(declaringType.GetRuntimeType(), handle.GetMethodInfo());
-#endif
-
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && declaringType != null && m != null)
-            {
-                FrameworkEventSource.Log.EndGetMethodFromHandle(declaringType.GetRuntimeType().GetFullNameForEtw(), m.GetFullNameForEtw());
-            }
-#endif
-
             return m;
+#else
+            return RuntimeType.GetMethodBase(declaringType.GetRuntimeType(), handle.GetMethodInfo());
+#endif
         }
 
 #if MONO

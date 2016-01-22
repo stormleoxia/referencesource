@@ -64,29 +64,7 @@ namespace Microsoft.Win32.SafeHandles {
             NativeEventCalls.CloseEvent_internal (handle);
             return true;
 #else
-#if !FEATURE_CORECLR
-            if (!bIsMutex || Environment.HasShutdownStarted)
-                return Win32Native.CloseHandle(handle);                
-            
-            bool bReturn = false;                
-            bool bMutexObtained = false;                
-            try
-            {
-               if (!bIsReservedMutex)
-               {
-                   Mutex.AcquireReservedMutex(ref bMutexObtained);    
-               }
-               bReturn = Win32Native.CloseHandle(handle);
-            }
-            finally
-            {
-                if (bMutexObtained)
-                    Mutex.ReleaseReservedMutex();
-            }
-            return bReturn;
-#else
             return Win32Native.CloseHandle(handle);
-#endif
 #endif
         }
 

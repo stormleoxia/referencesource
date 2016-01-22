@@ -786,13 +786,13 @@ namespace System.Web {
             AddRow(requestData, SR.Trace_Request, row);
 
             // header info
-            int i;
-            String[] keys = _context.Request.Headers.AllKeys;
-            for (i=0; i<keys.Length; i++) {
-                row = NewRow(requestData, SR.Trace_Headers_Collection);
-                row[SR.Trace_Name] = keys[i];
-                row[SR.Trace_Value] = _context.Request.Headers[keys[i]];
-                AddRow(requestData, SR.Trace_Headers_Collection, row);
+            try {
+                // Bug 867196: Use Request.Unvalidated to ensure request validation will not
+                // be triggered when the entries of the collection are accessed.
+                AddCollectionToRequestData(requestData, SR.Trace_Headers_Collection, _context.Request.Unvalidated.Headers);
+            }
+            catch {
+                // ---- exceptions when we fail to get the unvalidated collection
             }
 
             // response header info

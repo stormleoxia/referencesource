@@ -81,13 +81,42 @@ namespace System.Collections.Generic
             }
             // If T is an int-based Enum, return an EnumEqualityComparer<T>
             // See the METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST and METHOD__JIT_HELPERS__UNSAFE_ENUM_CAST_LONG cases in getILIntrinsicImplementation
-            if (t.IsEnum && Enum.GetUnderlyingType(t) == typeof(int))
-            {
+            if (t.IsEnum) {
+                TypeCode underlyingTypeCode = Type.GetTypeCode(Enum.GetUnderlyingType(t));
+
+                // Depending on the enum type, we need to special case the comparers so that we avoid boxing
+                // Note: We have different comparers for Short and SByte because for those types we need to make sure we call GetHashCode on the actual underlying type as the 
+                // implementation of GetHashCode is more complex than for the other types.
+                switch (underlyingTypeCode) {
+                    case TypeCode.Int16: // short
 #if MONO
-                return (EqualityComparer<T>)RuntimeType.CreateInstanceForAnotherGenericParameter (typeof(EnumEqualityComparer<>), t);
+                        return (EqualityComparer<T>)RuntimeType.CreateInstanceForAnotherGenericParameter (typeof(ShortEnumEqualityComparer<>), t);
 #else
-                return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<int>), t);
+                        return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(ShortEnumEqualityComparer<short>), t);
 #endif
+                    case TypeCode.SByte:
+#if MONO
+                        return (EqualityComparer<T>)RuntimeType.CreateInstanceForAnotherGenericParameter (typeof(SByteEnumEqualityComparer<>), t);
+#else
+                        return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(SByteEnumEqualityComparer<sbyte>), t);
+#endif
+                    case TypeCode.Int32:
+                    case TypeCode.UInt32:
+                    case TypeCode.Byte:
+                    case TypeCode.UInt16: //ushort
+#if MONO
+                        return (EqualityComparer<T>)RuntimeType.CreateInstanceForAnotherGenericParameter (typeof(EnumEqualityComparer<>), t);
+#else
+                        return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(EnumEqualityComparer<int>), t);
+#endif
+                    case TypeCode.Int64:
+                    case TypeCode.UInt64:
+#if MONO
+                        return (EqualityComparer<T>)RuntimeType.CreateInstanceForAnotherGenericParameter (typeof(LongEnumEqualityComparer<>), t);
+#else                    
+                        return (EqualityComparer<T>)RuntimeTypeHandle.CreateInstanceForAnotherGenericParameter((RuntimeType)typeof(LongEnumEqualityComparer<long>), t);
+#endif
+                }
             }
             // Otherwise return an ObjectEqualityComparer<T>
             return new ObjectEqualityComparer<T>();

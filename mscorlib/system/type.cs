@@ -88,12 +88,6 @@ namespace System {
         // case-sensitive by default).
         ////  
 
-        // this method is required so Object.GetType is not made virtual by the compiler 
-        // _Type.GetType()
-        public new Type GetType()
-        {
-            return base.GetType();
-        }
 #if !MONO
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName, bool throwOnError, bool ignoreCase) {
@@ -104,30 +98,14 @@ namespace System {
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName, bool throwOnError) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Type t = RuntimeType.GetType(typeName, throwOnError, false, false, ref stackMark);
 
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && t != null)
-            {
-                FrameworkEventSource.Log.TypeGetType(t.GetFullNameForEtw());
-            }
-#endif
-            return t;
+            return RuntimeType.GetType(typeName, throwOnError, false, false, ref stackMark);
         }
 
         [MethodImplAttribute(MethodImplOptions.NoInlining)] // Methods containing StackCrawlMark local var has to be marked non-inlineable
         public static Type GetType(String typeName) {
             StackCrawlMark stackMark = StackCrawlMark.LookForMyCaller;
-            Type t = RuntimeType.GetType(typeName, false, false, false, ref stackMark);
-
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && t != null)
-            {
-                FrameworkEventSource.Log.TypeGetType(t.GetFullNameForEtw());
-            }
-#endif
-
-            return t;
+            return RuntimeType.GetType(typeName, false, false, false, ref stackMark);
         }
 #endif
 #if !FEATURE_CORECLR

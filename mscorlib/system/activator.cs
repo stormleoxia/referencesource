@@ -110,12 +110,6 @@ namespace System {
 
         static public Object CreateInstance(Type type, params Object[] args)
         {
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && type != null)
-            {
-                FrameworkEventSource.Log.ActivatorCreateInstance(type.GetFullNameForEtw());
-            }
-#endif
             return CreateInstance(type,
                                   Activator.ConstructorDefault,
                                   null,
@@ -138,12 +132,6 @@ namespace System {
         
         static public Object CreateInstance(Type type)
         {
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && type != null)
-            {
-                FrameworkEventSource.Log.ActivatorCreateInstance(type.GetFullNameForEtw());
-            }
-#endif            
             return Activator.CreateInstance(type, false);
         }
 
@@ -218,12 +206,7 @@ namespace System {
         static public T CreateInstance<T>()
         {
             RuntimeType rt = typeof(T) as RuntimeType;
-#if !FEATURE_CORECLR && !MONO
-            if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage) && rt != null)
-            {
-                FrameworkEventSource.Log.ActivatorCreateInstanceT(rt.GetFullNameForEtw());
-            }
-#endif
+
             // This is a hack to maintain compatibility with V2. Without this we would throw a NotSupportedException for void[].
             // Array, Ref, and Pointer types don't have default constructors.
             if (rt.HasElementType)
@@ -629,6 +612,7 @@ namespace System {
 #if FEATURE_COMINTEROP || MONO_COM || MOBILE_LEGACY
 
 #if FEATURE_CLICKONCE || MOBILE_LEGACY
+#if FEATURE_CLICKONCE || MONO_FEATURE_MULTIPLE_APPDOMAINS
         [System.Security.SecuritySafeCritical]  // auto-generated
         public static ObjectHandle CreateInstance (ActivationContext activationContext) {
             AppDomainManager domainManager = AppDomain.CurrentDomain.DomainManager;
@@ -646,6 +630,17 @@ namespace System {
 
             return domainManager.ApplicationActivator.CreateInstance(activationContext, activationCustomData);
         }
+#else
+        [Obsolete ("Activator.CreateInstance (ActivationContext) is not supported on this platform.", true)]
+        public static ObjectHandle CreateInstance (ActivationContext activationContext) {
+            throw new PlatformNotSupportedException ("Activator.CreateInstance (ActivationContext) is not supported on this platform.");
+        }
+
+        [Obsolete ("Activator.CreateInstance (ActivationContext, string[]) is not supported on this platform.", true)]
+        public static ObjectHandle CreateInstance (ActivationContext activationContext, string[] activationCustomData) {
+            throw new PlatformNotSupportedException ("Activator.CreateInstance (ActivationContext) is not supported on this platform.");
+        }
+#endif
 #endif // FEATURE_CLICKONCE
 
         [ResourceExposure(ResourceScope.Machine)]

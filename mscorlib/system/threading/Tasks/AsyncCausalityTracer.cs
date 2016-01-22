@@ -8,6 +8,10 @@
 // <OWNER>AlfreMen</OWNER>
 //
 
+#if MONO
+#undef FEATURE_COMINTEROP
+#endif
+
 using System;
 using System.Security;
 using System.Diagnostics.Contracts;
@@ -56,6 +60,31 @@ namespace System.Threading.Tasks
     [FriendAccessAllowed]
     internal static class AsyncCausalityTracer
     {
+        static internal void EnableToETW(bool enabled) 
+        { 
+#if !MONO
+            if (enabled)
+               f_LoggingOn |= Loggers.ETW;
+            else 
+               f_LoggingOn &= ~Loggers.ETW;
+#endif
+        }
+
+        [FriendAccessAllowed]
+        internal static bool LoggingOn
+        {
+            [FriendAccessAllowed]
+            get
+            {
+#if FEATURE_COMINTEROP
+                return f_LoggingOn != 0;
+#else
+                return false;
+#endif
+            }
+        }
+
+#if FEATURE_COMINTEROP
         //s_PlatformId = {4B0171A6-F3D0-41A0-9B33-02550652B995}
         private static readonly Guid s_PlatformId = new Guid(0x4B0171A6, 0xF3D0, 0x41A0, 0x9B, 0x33, 0x02, 0x55, 0x06, 0x52, 0xB9, 0x95);
 

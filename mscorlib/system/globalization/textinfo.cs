@@ -301,7 +301,6 @@ namespace System.Globalization {
             if (TryFastFindStringOrdinalIgnoreCase(Microsoft.Win32.Win32Native.FIND_FROMSTART, source, startIndex, value, count, ref ret))
                 return ret;
 #endif
-#endif
 
             // the search space within [source] starts at offset [startIndex] inclusive and includes
             // [count] characters (thus the last included character is at index [startIndex + count -1]
@@ -372,7 +371,6 @@ namespace System.Globalization {
             int ret = -1;
             if (TryFastFindStringOrdinalIgnoreCase(Microsoft.Win32.Win32Native.FIND_FROMEND, source, startIndex, value, count, ref ret))
                 return ret;
-#endif
 #endif
 
             // the search space within [source] ends at offset [startIndex] inclusive
@@ -614,29 +612,7 @@ namespace System.Globalization {
 #if MONO
             return ToLowerInternal (str);
 #else
-            String toLower = InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, false);
-#if __APPLE__
-            //
-            // Mac OS X has a documented list of "illegal" (precomposed) characters
-            // http://developer.apple.com/technotes/tn/tn1150table.html
-            //
-            // These characters are mostly in the EXTENDED_GREEK range.  Apple decomposes
-            // these characters into a sequence of two or more characters that is a
-            // canonical or compatibility equivalent.
-            //
-            // In the extremely unlikely event that an illegal character is in the String,
-            // fallback to using slower Char routines since they do not decompose
-            // the illegal characters.   
-            //
-            if (toLower.Length != str.Length) {
-                char[] chars = new char[str.Length];
-                for (int i = 0; i < str.Length; i++) {
-                    chars[i] = this.ToLower(str[i]);
-                }
-                toLower = new String(chars);
-            }
-#endif
-            return toLower;
+            return InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, false);
 #endif
         }
 
@@ -682,33 +658,10 @@ namespace System.Globalization {
         {
             if (str == null) { throw new ArgumentNullException("str"); }
             Contract.EndContractBlock();
-
 #if MONO
             return ToUpperInternal (str);
 #else
-            String toUpper = InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, true);
-#if __APPLE__
-            //
-            // Mac OS X has a documented list of "illegal" (precomposed) characters
-            // http://developer.apple.com/technotes/tn/tn1150table.html
-            //
-            // These characters are mostly in the EXTENDED_GREEK range.  Apple decomposes
-            // these characters into a sequence of two or more characters that is a
-            // canonical or compatibility equivalent.
-            //
-            // In the extremely unlikely event that an illegal character is in the String,
-            // fallback to using slower Char routines since they do not decompose
-            // the illegal characters.   
-            //
-            if (toUpper.Length != str.Length) {
-                char[] chars = new char[str.Length];
-                for (int i = 0; i < str.Length; i++) {
-                    chars[i] = this.ToUpper(str[i]);
-                }
-                toUpper = new String(chars);
-            }
-#endif
-            return toUpper;
+            return InternalChangeCaseString(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, true);
 #endif
         }
 
@@ -1072,13 +1025,30 @@ namespace System.Globalization {
             Contract.EndContractBlock();
 
 #if MONO
-            return StringComparer.CurrentCultureIgnoreCase.GetHashCode (str);
+			return this == s_Invariant ? GetInvariantCaseInsensitiveHashCode (str) : StringComparer.CurrentCultureIgnoreCase.GetHashCode (str);
 #else
             // Return our result
             return (InternalGetCaseInsHash(this.m_dataHandle, this.m_handleOrigin, this.m_textInfoName, str, forceRandomizedHashing, additionalEntropy));
 #endif
         }
-#if !MONO
+#if MONO
+		unsafe int GetInvariantCaseInsensitiveHashCode (string str)
+		{
+			fixed (char * c = str) {
+				char * cc = c;
+				char * end = cc + str.Length - 1;
+				int h = 0;
+				for (;cc < end; cc += 2) {
+					h = (h << 5) - h + Char.ToUpperInvariant (*cc);
+					h = (h << 5) - h + Char.ToUpperInvariant (cc [1]);
+				}
+				++end;
+				if (cc < end)
+					h = (h << 5) - h + Char.ToUpperInvariant (*cc);
+				return h;
+			}
+		}
+#else
         // Change case (ToUpper/ToLower) -- COMNlsInfo::InternalChangeCaseChar
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]

@@ -1531,8 +1531,13 @@ namespace System.Net {
                     // use the AsyncResult to return our Stream
                     _WriteAResult = new LazyAsyncResult(this, null, null);
 
-                    Async = false;
-                }
+                        // Submit the Request, causes us to queue ourselves to a Connection and may block
+                        // It has happened that [....] path uses this loop the Retry memeber for handling resubmissions.
+                        while (m_Retry && !_WriteAResult.InternalPeekCompleted) {
+                            _OldSubmitWriteStream = null;
+                            _SubmitWriteStream = null;
+                            BeginSubmitRequest();
+                        }
 
                 // OK, we haven't submitted the request yet, so do so now
                 // save off verb from origin Verb
@@ -2134,10 +2139,10 @@ namespace System.Net {
 
                     Async = false;
 
-                    // Since we don't really allow switching between [....] and async, if the request is already async, this needs to
-                    // capture context for use in the ongoing async operations as if it were BeginGetResponse().
-                    if (Async)
-                    {
+                            // Since we don't really allow switching between [....] and async, if the request is already async, this needs to
+                            // capture context for use in the ongoing async operations as if it were BeginGetResponse().
+                            if (Async)
+                            {
 #if !FEATURE_PAL
                         ContextAwareResult readResult = new ContextAwareResult(IdentityRequired, true, this, null, null);
 #else
@@ -2157,13 +2162,13 @@ namespace System.Net {
             // See if we need to do the call-done processing here.
             CheckDeferredCallDone(stream);
 
-            if (!gotResponse)
-            {
-                //The previous call may have been async.  If we are now doing a [....] call, we should
-                //use the timeout
-                if (_Timer == null){
-                    _Timer = TimerQueue.CreateTimer(s_TimeoutCallback, this);
-                }
+                    if (!gotResponse)
+                    {
+                        //The previous call may have been async.  If we are now doing a [....] call, we should
+                        //use the timeout
+                        if (_Timer == null) {
+                            _Timer = TimerQueue.CreateTimer(s_TimeoutCallback, this);
+                        }
 
 
                 // Save Off verb, and use it to make the request

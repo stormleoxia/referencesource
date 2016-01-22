@@ -249,6 +249,7 @@ namespace System.Threading.Tasks
             // ETW event for Parallel Invoke Begin
             int forkJoinContextID = 0;
             Task callerTask = null;
+#if !MONO            
             if (TplEtwProvider.Log.IsEnabled())
             {
                 forkJoinContextID = Interlocked.Increment(ref s_forkJoinContextID);
@@ -257,7 +258,7 @@ namespace System.Threading.Tasks
                                                      forkJoinContextID, TplEtwProvider.ForkJoinOperationType.ParallelInvoke,
                                                      actionsCopy.Length);
             }
-#endif
+#endif            
 
 #if DEBUG
             actions = null; // Ensure we don't accidentally use this below.
@@ -400,7 +401,7 @@ namespace System.Threading.Tasks
             }
             finally
             {
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO                
                 // ETW event for Parallel Invoke End
                 if (TplEtwProvider.Log.IsEnabled())
                 {
@@ -1095,6 +1096,7 @@ namespace System.Threading.Tasks
             // ETW event for Parallel For begin
             int forkJoinContextID = 0;
             Task callingTask = null;
+#if !MONO            
             if (TplEtwProvider.Log.IsEnabled())
             {
                 forkJoinContextID = Interlocked.Increment(ref s_forkJoinContextID);
@@ -1149,7 +1151,7 @@ namespace System.Threading.Tasks
                             return; // no need to run
                         }
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                         // ETW event for ParallelFor Worker Fork
                         if (TplEtwProvider.Log.IsEnabled())
                         {
@@ -1254,7 +1256,7 @@ namespace System.Threading.Tasks
                                 localFinally(localValue);
                             }
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                             // ETW event for ParallelFor Worker Join
                             if (TplEtwProvider.Log.IsEnabled())
                             {
@@ -1312,8 +1314,7 @@ namespace System.Threading.Tasks
 
                 if ((rootTask != null) && rootTask.IsCompleted) rootTask.Dispose();
 
-
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                 // ETW event for Parallel For End
                 if (TplEtwProvider.Log.IsEnabled())
                 {
@@ -1419,6 +1420,7 @@ namespace System.Threading.Tasks
             // ETW event for Parallel For begin
             Task callerTask = null;
             int forkJoinContextID = 0;
+#if !MONO
             if (TplEtwProvider.Log.IsEnabled())
             {
                 forkJoinContextID = Interlocked.Increment(ref s_forkJoinContextID);
@@ -1428,7 +1430,6 @@ namespace System.Threading.Tasks
                                                      fromInclusive, toExclusive);
             }
 #endif
-
 
             ParallelForReplicatingTask rootTask = null; // eliminates "Use of unassigned local variable" compiler bug below.
 
@@ -1472,8 +1473,7 @@ namespace System.Threading.Tasks
                         return; // no need to run
                     }
 
-
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                     // ETW event for ParallelFor Worker Fork
                     if (TplEtwProvider.Log.IsEnabled())
                     {
@@ -1481,7 +1481,6 @@ namespace System.Threading.Tasks
                                                          forkJoinContextID);
                     }
 #endif
-
 
                     TLocal localValue = default(TLocal);
                     bool bLocalValueInitialized = false; // Tracks whether localInit ran without exceptions, so that we can skip localFinally if it wasn't
@@ -1579,7 +1578,7 @@ namespace System.Threading.Tasks
                             localFinally(localValue);
                         }
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                         // ETW event for ParallelFor Worker Join
                         if (TplEtwProvider.Log.IsEnabled())
                         {
@@ -1637,7 +1636,7 @@ namespace System.Threading.Tasks
 
                 if ((rootTask != null) && rootTask.IsCompleted) rootTask.Dispose();
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                 // ETW event for Parallel For End
                 if (TplEtwProvider.Log.IsEnabled())
                 {
@@ -3240,7 +3239,7 @@ namespace System.Threading.Tasks
                 throw new OperationCanceledException(parallelOptions.CancellationToken);
             }
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
             // ETW event for Parallel For begin
             int forkJoinContextID = 0;
             Task callerTask = null;
@@ -3252,7 +3251,7 @@ namespace System.Threading.Tasks
                                                      forkJoinContextID, TplEtwProvider.ForkJoinOperationType.ParallelForEach,
                                                      0, 0);
             }
-#endif
+#endif            
 
             // For all loops we need a shared flag even though we don't have a body with state, 
             // because the shared flag contains the exceptional bool, which triggers other workers 
@@ -3307,7 +3306,7 @@ namespace System.Threading.Tasks
             {
                 Task currentWorkerTask = Task.InternalCurrent;
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                 // ETW event for ParallelForEach Worker Fork                
                 if (TplEtwProvider.Log.IsEnabled())
                 {
@@ -3472,7 +3471,7 @@ namespace System.Threading.Tasks
                         myPartitionToDispose.Dispose();
                     }
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                     // ETW event for ParallelFor Worker Join
                     if (TplEtwProvider.Log.IsEnabled())
                     {
@@ -3556,8 +3555,7 @@ namespace System.Threading.Tasks
                     d.Dispose();
                 }
 
-
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                 // ETW event for Parallel For End
                 if (TplEtwProvider.Log.IsEnabled())
                 {

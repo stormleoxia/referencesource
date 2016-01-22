@@ -87,7 +87,7 @@ namespace System.Runtime.CompilerServices
                 if (continuation == null) throw new ArgumentNullException("continuation");
                 Contract.EndContractBlock();
 
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
                 if (TplEtwProvider.Log.IsEnabled())
                 {
                     continuation = OutputCorrelationEtwEvent(continuation);
@@ -126,8 +126,7 @@ namespace System.Runtime.CompilerServices
                     }
                 }
             }
-
-#if !FEATURE_PAL && !FEATURE_CORECLR    // PAL and CoreClr don't support  eventing
+#if !MONO
             private static Action OutputCorrelationEtwEvent(Action continuation)
             {
                 int continuationId = Task.NewId();
@@ -148,7 +147,7 @@ namespace System.Runtime.CompilerServices
                 });
                 
             }
-#endif
+#endif            
 
             /// <summary>WaitCallback that invokes the Action supplied as object state.</summary>
             private static readonly WaitCallback s_waitCallbackRunAction = RunAction;

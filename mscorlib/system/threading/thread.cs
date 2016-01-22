@@ -331,7 +331,7 @@ namespace System.Threading {
                     ExecutionContext.CaptureOptions.IgnoreSyncCtx);
                 t.SetExecutionContextHelper(ec);
             }
-#if FEATURE_ROLE_BASED_SECURITY
+#if FEATURE_IMPERSONATION
             IPrincipal principal = (IPrincipal)CallContext.Principal;
 #else
             IPrincipal principal = null;
@@ -413,6 +413,8 @@ namespace System.Threading {
             m_ExecutionContext = value.DangerousGetRawExecutionContext();
             ExecutionContextBelongsToCurrentScope = belongsToCurrentScope;
         }
+#endif //!FEATURE_CORECLR
+
 #if !MONO
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]
@@ -535,7 +537,7 @@ namespace System.Threading {
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void AbortInternal();
 #endif
-#if !FEATURE_CORECLR || MONO
+#if (!FEATURE_CORECLR && !MONO) || MONO_FEATURE_THREAD_ABORT
         /*=========================================================================
         ** Resets a thread abort.
         ** Should be called by trusted code only
@@ -555,7 +557,8 @@ namespace System.Threading {
         [ResourceExposure(ResourceScope.None)]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void ResetAbortNative();
-
+#endif
+#if (!FEATURE_CORECLR && !MONO) || MONO_FEATURE_THREAD_SUSPEND_RESUME
         /*=========================================================================
         ** Suspends the thread. If the thread is already suspended, this call has
         ** no effect.
@@ -592,7 +595,9 @@ namespace System.Threading {
         [ResourceExposure(ResourceScope.None)]
         [MethodImplAttribute(MethodImplOptions.InternalCall)]
         private extern void ResumeInternal();
+#endif
 
+#if !FEATURE_CORECLR || MONO
         /*=========================================================================
         ** Interrupts a thread that is inside a Wait(), Sleep() or Join().  If that
         ** thread is not currently blocked in that manner, it will be interrupted
@@ -749,10 +754,15 @@ namespace System.Threading {
         }
 #endif
         [System.Security.SecurityCritical]  // auto-generated
-        [MethodImplAttribute(MethodImplOptions.InternalCall),
-         HostProtection(Synchronization = true, ExternalThreading = true),
-         ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success),
-         ResourceExposure(ResourceScope.None)]
+        [ResourceExposure(ResourceScope.None)]
+#if MONO
+        [MethodImplAttribute(MethodImplOptions.InternalCall)]
+#else
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
+#endif
+        [SuppressUnmanagedCodeSecurity]
+        [HostProtection(Synchronization = true, ExternalThreading = true),
+         ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
         private static extern bool YieldInternal();
 
         [System.Security.SecuritySafeCritical]  // auto-generated
@@ -1759,6 +1769,7 @@ namespace System.Threading {
         }
 #endif
 #if !MONO
+
         // Helper function to set the AbortReason for a thread abort.
         //  Checks that they're not alredy set, and then atomically updates
         //  the reason info (object + ADID).

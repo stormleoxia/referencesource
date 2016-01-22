@@ -402,6 +402,7 @@ namespace System.Data.SqlClient {
                 }
 
                 _activeConnection = value; // UNDONE: Designers need this setter.  Should we block other scenarios?
+
                 Bid.Trace("<sc.SqlCommand.set_Connection|API> %d#, %d#\n", ObjectID, ((null != value) ? value.ObjectID : -1));
             }
         }

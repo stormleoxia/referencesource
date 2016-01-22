@@ -30,12 +30,6 @@ namespace System.Reflection
             if(rcType==null){
                 return null;
             }else{
-#if !FEATURE_CORECLR && !MONO
-                if (FrameworkEventSource.IsInitialized && FrameworkEventSource.Log.IsEnabled(EventLevel.Informational, FrameworkEventSource.Keywords.DynamicTypeUsage))
-                {
-                    FrameworkEventSource.Log.IntrospectionExtensionsGetTypeInfo(type.GetFullNameForEtw());
-                }
-#endif
                 return rcType.GetTypeInfo();
             }
         }   

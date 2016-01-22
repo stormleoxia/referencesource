@@ -490,8 +490,49 @@ namespace System {
         [SecurityCritical]
         [ResourceExposure(ResourceScope.None)]        
         [ReliabilityContract(Consistency.WillNotCorruptState, Cer.Success)]
-        extern private unsafe static void __Memcpy(byte* dest, byte* src, int len);
-#endif // ARM
+#if WIN64
+        extern private unsafe static void __Memmove(byte* dest, byte* src, ulong len);
+#else
+        extern private unsafe static void __Memmove(byte* dest, byte* src, uint len);
+#endif
+
+
+        // The attributes on this method are chosen for best JIT performance. 
+        // Please do not edit unless intentional.
+        [System.Security.SecurityCritical]
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static unsafe void MemoryCopy(void* source, void* destination, long destinationSizeInBytes, long sourceBytesToCopy)
+        {
+            if (sourceBytesToCopy > destinationSizeInBytes)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
+            }
+#if WIN64
+            Memmove((byte*)destination, (byte*)source, checked((ulong) sourceBytesToCopy));
+#else
+            Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
+#endif // WIN64
+        }
+
+
+        // The attributes on this method are chosen for best JIT performance. 
+        // Please do not edit unless intentional.
+        [System.Security.SecurityCritical]
+        [MethodImplAttribute(MethodImplOptions.AggressiveInlining)]
+        [CLSCompliant(false)]
+        public static unsafe void MemoryCopy(void* source, void* destination, ulong destinationSizeInBytes, ulong sourceBytesToCopy)
+        {
+            if (sourceBytesToCopy > destinationSizeInBytes)
+            {
+                ThrowHelper.ThrowArgumentOutOfRangeException(ExceptionArgument.sourceBytesToCopy);
+            }
+#if WIN64
+            Memmove((byte*)destination, (byte*)source, sourceBytesToCopy);
+#else
+            Memmove((byte*)destination, (byte*)source, checked((uint)sourceBytesToCopy));
+#endif // WIN64
+        }
 #endif
     }
 }

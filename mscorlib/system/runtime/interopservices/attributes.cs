@@ -165,7 +165,6 @@ namespace System.Runtime.InteropServices{
         public String Value { get { return _importClassName; } }
     }
 
-#if FEATURE_COMINTEROP || MOBILE_LEGACY
     [AttributeUsage(AttributeTargets.Method, Inherited = false)] 
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class LCIDConversionAttribute : Attribute
@@ -246,7 +245,6 @@ namespace System.Runtime.InteropServices{
         }
         public IDispatchImplType Value { get {return _val;} }   
     }
-#endif
 
     [AttributeUsage(AttributeTargets.Class, Inherited = true)] 
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -286,7 +284,7 @@ namespace System.Runtime.InteropServices{
         }
     }
 #endif
-#if FEATURE_COMINTEROP
+#if FEATURE_COMINTEROP || MOBILE_LEGACY
 [Serializable]
 [Flags()]
     [System.Runtime.InteropServices.ComVisible(true)]
@@ -478,7 +476,6 @@ namespace System.Runtime.InteropServices{
 
         Currency = 0xf,         // A currency
 
-#if FEATURE_COMINTEROP || FEATURE_LEGACYNETCF || MONO
         BStr             = 0x13,        // OLE Unicode BSTR
 #endif //FEATURE_COMINTEROP || FEATURE_LEGACYNETCF
 
@@ -492,13 +489,11 @@ namespace System.Runtime.InteropServices{
 
         IUnknown = 0x19,        // COM IUnknown pointer. 
 
-#if FEATURE_COMINTEROP || FEATURE_LEGACYNETCF || MONO
         IDispatch        = 0x1a,        // COM IDispatch pointer
 #endif //FEATURE_COMINTEROP || FEATURE_LEGACYNETCF
 
         Struct = 0x1b,        // Structure
 
-#if FEATURE_COMINTEROP || FEATURE_LEGACYNETCF || MONO
         Interface        = 0x1c,        // COM interface
 
         SafeArray        = 0x1d,        // OLE SafeArray
@@ -510,7 +505,6 @@ namespace System.Runtime.InteropServices{
 
         SysUInt = 0x20,
 
-#if FEATURE_COMINTEROP || FEATURE_LEGACYNETCF || MONO
         VBByRefStr       = 0x22,         
 
         AnsiBStr         = 0x23,        // OLE BSTR containing SBCS characters
@@ -528,7 +522,6 @@ namespace System.Runtime.InteropServices{
 
         LPStruct = 0x2b,        // Pointer to a structure
 
-#if FEATURE_COMINTEROP || FEATURE_LEGACYNETCF || MONO
         CustomMarshaler  = 0x2c,        
 #endif //FEATURE_COMINTEROP || FEATURE_LEGACYNETCF
 
@@ -1075,8 +1068,6 @@ namespace System.Runtime.InteropServices{
         public Type CoClass { get { return _CoClass; } }
     }
 
-#if FEATURE_COMINTEROP || MONO
-
     [AttributeUsage(AttributeTargets.Interface, Inherited = false)]
     [System.Runtime.InteropServices.ComVisible(true)]
     public sealed class ComEventInterfaceAttribute : Attribute
@@ -1193,7 +1184,6 @@ namespace System.Runtime.InteropServices{
         public Type ClassType { get { return _classType; } }
         public String MethodName { get { return _methodName; } }
     }    
-#endif // FEATURE_COMINTEROP
-
+#endif
+#endif
 }
-

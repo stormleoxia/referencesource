@@ -90,12 +90,11 @@ namespace System.ComponentModel {
                 return nativeErrorCode;
             }
         }
-#if !MONO
-        private static string GetErrorMessage(int error) {
-            //get the system error message...
-            string errorMsg = "";
 
-            StringBuilder sb = new StringBuilder(256);
+#if !MONO
+        private static bool TryGetErrorMessage(int error, StringBuilder sb, out string errorMsg)
+        {
+            errorMsg = "";
             int result = SafeNativeMethods.FormatMessage(
                                         SafeNativeMethods.FORMAT_MESSAGE_IGNORE_INSERTS |
                                         SafeNativeMethods.FORMAT_MESSAGE_FROM_SYSTEM |

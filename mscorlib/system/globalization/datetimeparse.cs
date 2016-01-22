@@ -1,4 +1,4 @@
-// ==++==
+﻿// ==++==
 //
 //   Copyright (c) Microsoft Corporation.  All rights reserved.
 //
@@ -704,6 +704,20 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                                 case TokenType.SEP_Date:
                                     dtok.dtt     = DTT.YearDateSep;
                                     break;
+
+                                case TokenType.SEP_Time:
+                                    if (!raw.hasSameDateAndTimeSeparators)
+                                    {
+                                        result.SetFailure(ParseFailureKind.Format, "Format_BadDateTime", null);
+                                        LexTraceExit("0040 (Invalid separator after number)", dps);
+                                        return false;
+                                    }
+
+                                    // we have the date and time separators are same and getting a year number, then change the token to YearDateSep as 
+                                    // we are sure we are not parsing time.
+                                    dtok.dtt = DTT.YearDateSep;
+                                    break;
+
                                 case TokenType.SEP_DateOrOffset:
                                     // The separator is either a date separator or the start of a time zone offset. If the token will complete the date then
                                     // process just the number and roll back the index so that the outer loop can attempt to parse the time zone offset.
@@ -760,9 +774,12 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                             if (raw.timeMark == TM.NotSet) {
                                 raw.timeMark = (sep == TokenType.SEP_Am ? TM.AM : TM.PM);
                                 dtok.dtt = DTT.NumAmpm;
-#if !FEATURE_CORECLR && !MONO
                                 // Fix AM/PM parsing case, e.g. "1/10 5 AM"
-                                if (enableAmPmParseAdjustment && dps == DS.D_NN)
+                                if (dps == DS.D_NN 
+#if !FEATURE_CORECLR && !MONO
+                                    && enableAmPmParseAdjustment
+#endif
+                                )
                                 {
                                     if (!ProcessTerminaltState(DS.DX_NN, ref result, ref styles, ref raw, dtfi))
                                     {
@@ -806,6 +823,14 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                             raw.AddNumber(dtok.num);
                             break;                            
                         case TokenType.SEP_Time:
+                            if (raw.hasSameDateAndTimeSeparators && 
+                                (dps == DS.D_Y || dps == DS.D_YN || dps == DS.D_YNd || dps == DS.D_YM || dps == DS.D_YMd))
+                            {
+                                // we are parsing a date and we have the time separator same as date separator, so we mark the token as date separator
+                                dtok.dtt = DTT.NumDatesep;
+                                raw.AddNumber(dtok.num);
+                                break;
+                            }
                             dtok.dtt = DTT.NumTimesep;
                             raw.AddNumber(dtok.num);
                             break;
@@ -949,6 +974,18 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                                 dtok.dtt = DTT.MonthSpace;
                                 break;
                             case TokenType.SEP_Date:
+                                dtok.dtt = DTT.MonthDatesep;
+                                break;
+                            case TokenType.SEP_Time:
+                                if (!raw.hasSameDateAndTimeSeparators)
+                                {
+                                    result.SetFailure(ParseFailureKind.Format, "Format_BadDateTime", null);
+                                    LexTraceExit("0130 (Invalid separator after month name)", dps);
+                                    return false;
+                                }
+
+                                // we have the date and time separators are same and getting a Month name, then change the token to MonthDatesep as 
+                                // we are sure we are not parsing time.
                                 dtok.dtt = DTT.MonthDatesep;
                                 break;
                             case TokenType.SEP_DateOrOffset:
@@ -2331,6 +2368,8 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                 Int32 * numberPointer = stackalloc Int32[3];
                 raw.Init(numberPointer);
             }
+            raw.hasSameDateAndTimeSeparators = dtfi.DateSeparator.Equals(dtfi.TimeSeparator, StringComparison.Ordinal);
+
             result.calendar = dtfi.Calendar;
             result.era = Calendar.CurrentEra;
 
@@ -2393,6 +2432,38 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
                             result.SetFailure(ParseFailureKind.Format, "Format_BadDateTime", null);
                             TPTraceExit("0030", dps);
                             return false;
+                        }
+                    }
+
+                    if (raw.hasSameDateAndTimeSeparators)
+                    {
+                        if (dtok.dtt == DTT.YearEnd || dtok.dtt == DTT.YearSpace || dtok.dtt == DTT.YearDateSep)
+                        {
+                            // When time and date separators are same and we are hitting a year number while the first parsed part of the string was recognized 
+                            // as part of time (and not a date) DS.T_Nt, DS.T_NNt then change the state to be a date so we try to parse it as a date instead
+                            if (dps == DS.T_Nt)
+                            {
+                                dps = DS.D_Nd;
+                            }
+                            if (dps == DS.T_NNt)
+                            {
+                                dps = DS.D_NNd;
+                            }
+                        }
+
+                        bool atEnd = str.AtEnd();
+                        if (dateParsingStates[(int)dps][(int)dtok.dtt] == DS.ERROR || atEnd)
+                        {
+                            switch (dtok.dtt)
+                            {
+                                // we have the case of Serbia have dates in forms 'd.M.yyyy.' so we can expect '.' after the date parts. 
+                                // changing the token to end with space instead of Date Separator will avoid failing the parsing.
+
+                                case DTT.YearDateSep:  dtok.dtt = atEnd ? DTT.YearEnd  : DTT.YearSpace;  break;
+                                case DTT.NumDatesep:   dtok.dtt = atEnd ? DTT.NumEnd   : DTT.NumSpace;   break;
+                                case DTT.NumTimesep:   dtok.dtt = atEnd ? DTT.NumEnd   : DTT.NumSpace;   break;
+                                case DTT.MonthDatesep: dtok.dtt = atEnd ? DTT.MonthEnd : DTT.MonthSpace; break;
+                            }
                         }
                     }
 
@@ -4320,6 +4391,11 @@ new DS[] { DS.ERROR, DS.TX_NNN,  DS.TX_NNN,  DS.TX_NNN,  DS.ERROR,   DS.ERROR,  
             return (false);
         }
 
+        internal bool AtEnd()
+        {
+            return Index < len ? false : true;
+        }
+
         internal bool Advance(int count) {
             Contract.Assert(Index + count <= len, "__DTString::Advance: Index + count <= len");
             Index += count;
@@ -4832,6 +4908,7 @@ Start:
         internal int era;
         internal DateTimeParse.TM timeMark;
         internal double fraction;
+        internal bool hasSameDateAndTimeSeparators;
         //
         // <
 

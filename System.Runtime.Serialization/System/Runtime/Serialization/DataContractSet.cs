@@ -500,11 +500,28 @@ namespace System.Runtime.Serialization
         static bool IsTypeReferenceable(Type type)
         {
             Type itemType;
-            return (type.IsSerializable ||
-                    type.IsDefined(Globals.TypeOfDataContractAttribute, false) ||
-                    (Globals.TypeOfIXmlSerializable.IsAssignableFrom(type) && !type.IsGenericTypeDefinition) ||
-                    CollectionDataContract.IsCollection(type, out itemType) ||
-                    ClassDataContract.IsNonAttributedTypeValidForSerialization(type));
+
+            try
+            {
+                return (type.IsSerializable ||
+                        type.IsDefined(Globals.TypeOfDataContractAttribute, false) ||
+                        (Globals.TypeOfIXmlSerializable.IsAssignableFrom(type) && !type.IsGenericTypeDefinition) ||
+                        CollectionDataContract.IsCollection(type, out itemType) ||
+                        ClassDataContract.IsNonAttributedTypeValidForSerialization(type));
+            }
+            catch (Exception ex)
+            {
+                // An exception can be thrown in the designer when a project has a runtime binding redirection for a referenced assembly or a reference dependent assembly.
+                // Type.IsDefined is known to throw System.IO.FileLoadException.
+                // ClassDataContract.IsNonAttributedTypeValidForSerialization is known to throw System.IO.FileNotFoundException.
+                // We guard against all non-critical exceptions.
+                if (Fx.IsFatal(ex))
+                {
+                    throw;
+                }
+            }
+            
+            return false;
         }
     }
 }

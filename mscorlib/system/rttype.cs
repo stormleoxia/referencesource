@@ -45,7 +45,6 @@ using MdToken = System.Reflection.MetadataToken;
 #endif
 using System.Runtime.Versioning;
 using System.Diagnostics.Contracts;
-using System.Diagnostics.Tracing;
 
 #if MONO
 using CustomAttribute=System.MonoCustomAttrs;
@@ -92,13 +91,8 @@ namespace System
     }
 
     [Serializable]
-    internal partial class RuntimeType :
-#if !FEATURE_CORECLR || FEATURE_NETCORE
-        System.Reflection.TypeInfo, 
-#else
-        System.Type, 
-#endif	    
-        ISerializable, ICloneable
+    internal partial class RuntimeType : 
+        System.Reflection.TypeInfo, ISerializable, ICloneable
     {
         #region Definitions
 
@@ -5234,26 +5228,6 @@ namespace System
             }
         }
 
-        internal override string GetFullNameForEtw()
-        {
-            string fullName = "";
-            
-            if (IsCOMObject)
-            {
-                fullName = "Guid:" + this.GUID.ToString() + ", ";
-            }
-            
-            string fullname = GetCachedName(TypeNameKind.FullName);
-            string assemblyFullName = this.Assembly.GetFullNameForEtw();
-            
-            // FullName is null if this type contains generic parameters but is not a generic type definition.
-            if (fullname == null || assemblyFullName == null)
-                return fullName;
-            
-            fullName += Assembly.CreateQualifiedName(assemblyFullName, fullname); 
-
-            return fullName;
-        }
 #endif
         // This is used by the ToString() overrides of all reflection types. The legacy behavior has the following problems:
         //  1. Use only Name for nested types, which can be confused with global types and generic parameters of the same name.
@@ -5293,6 +5267,7 @@ namespace System
             }
         }
 #if !MONO
+
         private string GetCachedName(TypeNameKind kind)
         {
             return Cache.GetName(kind);

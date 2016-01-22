@@ -191,5 +191,62 @@ namespace System.Security.Cryptography {
             m_block++;
             return ret;
         }
+#if !MONO
+        [System.Security.SecuritySafeCritical]  // auto-generated
+        public byte[] CryptDeriveKey(string algname, string alghashname, int keySize, byte[] rgbIV)
+        {
+            if (keySize < 0)
+                throw new CryptographicException(Environment.GetResourceString("Cryptography_InvalidKeySize"));
+
+            int algidhash = X509Utils.NameOrOidToAlgId(alghashname, OidGroup.HashAlgorithm);
+            if (algidhash == 0)
+                throw new CryptographicException(Environment.GetResourceString("Cryptography_PasswordDerivedBytes_InvalidAlgorithm"));
+
+            int algid = X509Utils.NameOrOidToAlgId(algname, OidGroup.AllGroups);
+            if (algid == 0)
+                throw new CryptographicException(Environment.GetResourceString("Cryptography_PasswordDerivedBytes_InvalidAlgorithm"));
+
+            // Validate the rgbIV array
+            if (rgbIV == null)
+                throw new CryptographicException(Environment.GetResourceString("Cryptography_PasswordDerivedBytes_InvalidIV"));
+
+            byte[] key = null;
+            DeriveKey(ProvHandle, algid, algidhash,
+                      m_password, m_password.Length, keySize << 16, rgbIV, rgbIV.Length,
+                      JitHelpers.GetObjectHandleOnStack(ref key));
+            return key;
+        }
+
+        [System.Security.SecurityCritical] // auto-generated
+        private SafeProvHandle _safeProvHandle = null;
+        private SafeProvHandle ProvHandle
+        {
+            [System.Security.SecurityCritical]  // auto-generated
+            get
+            {
+                if (_safeProvHandle == null)
+                {
+                    lock (this)
+                    {
+                        if (_safeProvHandle == null)
+                        {
+                            SafeProvHandle safeProvHandle = Utils.AcquireProvHandle(m_cspParams);
+                            System.Threading.Thread.MemoryBarrier();
+                            _safeProvHandle = safeProvHandle;
+                        }
+                    }
+                }
+                return _safeProvHandle;
+            }
+        }
+
+        [System.Security.SecurityCritical]  // auto-generated
+        [ResourceExposure(ResourceScope.None)]
+        [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode), SuppressUnmanagedCodeSecurity]
+        private static extern void DeriveKey(SafeProvHandle hProv, int algid, int algidHash,
+                                      byte[] password, int cbPassword, int dwFlags, byte[] IV, int cbIV,
+                                      ObjectHandleOnStack retKey);
+#endif
+
     }
 }

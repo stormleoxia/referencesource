@@ -122,7 +122,7 @@ namespace System.Globalization {
             this.m_name = culture.m_name;
             this.m_sortName = culture.SortName;
 
-#if !FEATURE_CORECLR && !MONO
+#if !MONO
             IntPtr handleOrigin;
             this.m_dataHandle = InternalInitSortHandle(m_sortName, out handleOrigin);
             this.m_handleOrigin = handleOrigin;
@@ -283,7 +283,7 @@ namespace System.Globalization {
                 ci = CultureInfo.GetCultureInfo(m_name);
             }
             this.m_sortName = ci.SortName;
-#if !FEATURE_CORECLR && !MONO
+#if !MONO
             IntPtr handleOrigin;
             this.m_dataHandle = InternalInitSortHandle(m_sortName, out handleOrigin);
             this.m_handleOrigin = handleOrigin;
@@ -1313,7 +1313,7 @@ namespace System.Globalization {
         }
 #endif
 
-#if !FEATURE_CORECLR && !MONO
+#if !MONO
         [System.Security.SecuritySafeCritical]
         internal static IntPtr InternalInitSortHandle(String localeName, out IntPtr handleOrigin)
         {
@@ -1378,8 +1378,7 @@ namespace System.Globalization {
         [DllImport(JitHelpers.QCall, CharSet = CharSet.Unicode)]
         [SuppressUnmanagedCodeSecurity]
         private static extern IntPtr NativeInternalInitSortHandle(String localeName, out IntPtr handleOrigin);
-#endif
-#if !MONO
+
         // Get a locale sensitive sort hash code from native code -- COMNlsInfo::InternalGetGlobalizedHashCode
         [System.Security.SecurityCritical]  // auto-generated
         [ResourceExposure(ResourceScope.None)]

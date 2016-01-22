@@ -1514,6 +1514,11 @@ namespace System.ServiceModel.Channels
                 {
                     mtomMessageEncoder.WriteMessage(this.message, this.outputStream, this.mtomBoundary);
                 }
+
+                if (this.supportsConcurrentIO)
+                {
+                    this.outputStream.Close();
+                }
             }
             finally
             {
@@ -1675,6 +1680,12 @@ namespace System.ServiceModel.Channels
                     }
 
                     httpOutput.messageEncoder.EndWriteMessage(result);
+
+                    if (this.httpOutput.supportsConcurrentIO)
+                    {
+                        httpOutput.outputStream.Close();
+                    }
+
                     return true;
                 }
                 else
@@ -1702,6 +1713,11 @@ namespace System.ServiceModel.Channels
                     if (content != null)
                     {
                         content.EndWriteToStream(result);
+                    }
+
+                    if (this.httpOutput.supportsConcurrentIO)
+                    {
+                        httpOutput.outputStream.Close();
                     }
 
                     return true;
