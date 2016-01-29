@@ -155,6 +155,38 @@ namespace System.Security.Cryptography
             get { return s_InternalSyncObject; }
         }
 
+        // Provider type to use by default for RSA operations.  On systems which support the RSA-AES CSP, we
+        // want to use that since it enables access to SHA-2 operations, downlevel we fall back to the
+        // RSA-FULL CSP.
+        private static volatile int _defaultRsaProviderType;
+        private static volatile bool _haveDefaultRsaProviderType;
+        internal static int DefaultRsaProviderType
+        {
+            get {
+                if (!_haveDefaultRsaProviderType)
+                {
+#if MONO
+                    // The default provider value must remain 1 for Mono, otherwise we won't be able
+                    // to locate keypairs that were serialized by Mono versions 4.0 and lower.
+                    // (The ProviderType property in the CspParameters class affects serialization)
+                    _defaultRsaProviderType = 1;
+#else
+                    // The AES CSP is only supported on WinXP and higher
+                    bool osSupportsAesCsp = Environment.OSVersion.Platform == PlatformID.Win32NT &&
+                                            (Environment.OSVersion.Version.Major > 5 ||
+                                            (Environment.OSVersion.Version.Major == 5 && Environment.OSVersion.Version.Minor >= 1));
+
+                    _defaultRsaProviderType = osSupportsAesCsp ? Constants.PROV_RSA_AES : Constants.PROV_RSA_FULL;
+#endif
+                    _haveDefaultRsaProviderType = true;
+                }
+
+                return _defaultRsaProviderType;
+            }
+        }
+#if !MONO
+#if FEATURE_CRYPTO || FEATURE_LEGACYNETCFCRYPTO
+#if !FEATURE_PAL
         [System.Security.SecurityCritical] // auto-generated
         private static volatile SafeProvHandle _safeProvHandle;
         internal static SafeProvHandle StaticProvHandle {
